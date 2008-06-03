@@ -8769,8 +8769,9 @@ vim_regcomp(expr, re_flags)
     int re_flags;
 {
     regprog_T   *prog = nfa_regengine.regcomp(expr, re_flags);
-
-    return prog ? : bt_regengine.regcomp(expr, re_flags);
+    if (!prog)
+        EMSG("The NFA engine does not support this regular expression :( ");
+    return prog;
 }
 
 /*
