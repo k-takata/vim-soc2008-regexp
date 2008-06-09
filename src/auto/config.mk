@@ -23,8 +23,8 @@ CFLAGS		= -O2 -fno-strength-reduce -Wall
 CPPFLAGS	= 
 srcdir		= .
 
-LDFLAGS		=  -L/usr/local/lib
-LIBS		= -lncurses 
+LDFLAGS		= -L/usr/local/lib
+LIBS		= -lncurses -lnsl  -lacl -lattr
 TAGPRG		= ctags -I INIT+ --fields=+S
 
 CPP		= gcc -E
@@ -71,8 +71,8 @@ HANGULIN_OBJ	=
 WORKSHOP_SRC	= 
 WORKSHOP_OBJ	= 
 
-NETBEANS_SRC	= 
-NETBEANS_OBJ	= 
+NETBEANS_SRC	= netbeans.c
+NETBEANS_OBJ	= objects/netbeans.o
 
 RUBY		= 
 RUBY_SRC	= 
@@ -94,8 +94,8 @@ COMPILEDBY	=
 
 INSTALLVIMDIFF	= installvimdiff
 INSTALLGVIMDIFF	= installgvimdiff
-INSTALL_LANGS	= 
-INSTALL_TOOL_LANGS	= 
+INSTALL_LANGS	= install-languages
+INSTALL_TOOL_LANGS	= install-tool-languages
 
 ### Line break character as octal number for "tr"
 NL		= "\\012"
@@ -141,7 +141,7 @@ OS_EXTRA_SRC	=
 OS_EXTRA_OBJ	= 
 
 ### If the *.po files are to be translated to *.mo files.
-MAKEMO		= 
+MAKEMO		= yes
 
 # Make sure that "make first" will run "make all" once configure has done its
 # work.  This is needed when using the Makefile in the top directory.

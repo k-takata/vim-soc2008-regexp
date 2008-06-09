@@ -185,7 +185,7 @@
 #define HAVE_ISWUPPER 1
 #define HAVE_USLEEP 1
 #define HAVE_UTIME 1
-/* #undef HAVE_BIND_TEXTDOMAIN_CODESET */
+#define HAVE_BIND_TEXTDOMAIN_CODESET 1
 
 /* Define if you do not have utime(), but do have the utimes() function. */
 #define HAVE_UTIMES 1
@@ -302,7 +302,7 @@
 /* #undef FEAT_SNIFF */
 
 /* Define if you want to add support for ACL */
-/* #undef HAVE_POSIX_ACL */
+#define HAVE_POSIX_ACL 1
 /* #undef HAVE_SOLARIS_ACL */
 /* #undef HAVE_AIX_ACL */
 
@@ -319,7 +319,7 @@
 /* #undef FEAT_XFONTSET */
 
 /* Define if you want to include XIM support. */
-/* #undef FEAT_XIM */
+#define FEAT_XIM 1
 
 /* Define if you want to include Hangul input support. */
 /* #undef FEAT_HANGULIN */
@@ -343,10 +343,10 @@
 #define HAVE_DLFCN_H 1
 
 /* Define if there is a working gettext(). */
-/* #undef HAVE_GETTEXT */
+#define HAVE_GETTEXT 1
 
 /* Define if _nl_msg_cat_cntr is present. */
-/* #undef HAVE_NL_MSG_CAT_CNTR */
+#define HAVE_NL_MSG_CAT_CNTR 1
 
 /* Define if we have dlopen() */
 #define HAVE_DLOPEN 1
@@ -364,7 +364,7 @@
 /* #undef FEAT_SUN_WORKSHOP */
 
 /* Define if you want to include NetBeans integration. */
-/* #undef FEAT_NETBEANS_INTG */
+#define FEAT_NETBEANS_INTG 1
 
 /* Define default global runtime path */
 /* #undef RUNTIME_GLOBAL */
@@ -373,4 +373,4 @@
 /* #undef MODIFIED_BY */
 
 /* Define if you want XSMP interaction as well as vanilla swapfile safety */
-/* #undef USE_XSMP_INTERACT */
+#define USE_XSMP_INTERACT 1

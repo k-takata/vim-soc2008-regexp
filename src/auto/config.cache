@@ -14,15 +14,15 @@
 ac_cv_c_compiler_gnu=${ac_cv_c_compiler_gnu=yes}
 ac_cv_c_const=${ac_cv_c_const=yes}
 ac_cv_env_CC_set=set
-ac_cv_env_CC_value=
+ac_cv_env_CC_value=gcc
 ac_cv_env_CFLAGS_set=set
-ac_cv_env_CFLAGS_value=
+ac_cv_env_CFLAGS_value='-O2 -fno-strength-reduce -Wall'
 ac_cv_env_CPPFLAGS_set=set
 ac_cv_env_CPPFLAGS_value=
 ac_cv_env_CPP_set=
 ac_cv_env_CPP_value=
 ac_cv_env_LDFLAGS_set=set
-ac_cv_env_LDFLAGS_value=
+ac_cv_env_LDFLAGS_value=-L/usr/local/lib
 ac_cv_env_build_alias_set=
 ac_cv_env_build_alias_value=
 ac_cv_env_host_alias_set=
@@ -31,6 +31,7 @@ ac_cv_env_target_alias_set=
 ac_cv_env_target_alias_value=
 ac_cv_exeext=${ac_cv_exeext=}
 ac_cv_func_bcmp=${ac_cv_func_bcmp=yes}
+ac_cv_func_bind_textdomain_codeset=${ac_cv_func_bind_textdomain_codeset=yes}
 ac_cv_func_connect=${ac_cv_func_connect=yes}
 ac_cv_func_fchdir=${ac_cv_func_fchdir=yes}
 ac_cv_func_fchown=${ac_cv_func_fchown=yes}
@@ -137,9 +138,14 @@ ac_cv_lib_ICE_IceConnectionNumber=${ac_cv_lib_ICE_IceConnectionNumber=yes}
 ac_cv_lib_ICE_IceOpenConnection=${ac_cv_lib_ICE_IceOpenConnection=yes}
 ac_cv_lib_Xdmcp__XdmcpAuthDoIt=${ac_cv_lib_Xdmcp__XdmcpAuthDoIt=yes}
 ac_cv_lib_Xpm_XpmCreatePixmapFromData=${ac_cv_lib_Xpm_XpmCreatePixmapFromData=no}
+ac_cv_lib_acl_acl_get_file=${ac_cv_lib_acl_acl_get_file=yes}
+ac_cv_lib_attr_fgetxattr=${ac_cv_lib_attr_fgetxattr=yes}
 ac_cv_lib_elf_main=${ac_cv_lib_elf_main=no}
 ac_cv_lib_ncurses___tgetent=${ac_cv_lib_ncurses___tgetent=yes}
+ac_cv_lib_nsl_gethostbyname=${ac_cv_lib_nsl_gethostbyname=yes}
+ac_cv_lib_posix1e_acl_get_file=${ac_cv_lib_posix1e_acl_get_file=no}
 ac_cv_lib_selinux_is_selinux_enabled=${ac_cv_lib_selinux_is_selinux_enabled=no}
+ac_cv_lib_socket_socket=${ac_cv_lib_socket_socket=no}
 ac_cv_lib_xpg4__xpg4_setrunelocale=${ac_cv_lib_xpg4__xpg4_setrunelocale=no}
 ac_cv_objext=${ac_cv_objext=o}
 ac_cv_path_GTK12_CONFIG=${ac_cv_path_GTK12_CONFIG=no}
@@ -148,6 +154,7 @@ ac_cv_path_PKG_CONFIG=${ac_cv_path_PKG_CONFIG=/usr/bin/pkg-config}
 ac_cv_path_xmkmfpath=${ac_cv_path_xmkmfpath=/usr/bin/xmkmf}
 ac_cv_prog_AWK=${ac_cv_prog_AWK=gawk}
 ac_cv_prog_CPP=${ac_cv_prog_CPP='gcc -E'}
+ac_cv_prog_MSGFMT=${ac_cv_prog_MSGFMT=msgfmt}
 ac_cv_prog_STRIP=${ac_cv_prog_STRIP=strip}
 ac_cv_prog_ac_ct_CC=${ac_cv_prog_ac_ct_CC=gcc}
 ac_cv_prog_cc_g=${ac_cv_prog_cc_g=yes}
@@ -169,3 +176,4 @@ ac_cv_type_size_t=${ac_cv_type_size_t=yes}
 ac_cv_type_stack_t=${ac_cv_type_stack_t=yes}
 ac_cv_type_uid_t=${ac_cv_type_uid_t=yes}
 cf_cv_ebcdic=${cf_cv_ebcdic=no}
+vi_cv_have_gpm=${vi_cv_have_gpm=no}

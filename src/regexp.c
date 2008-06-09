@@ -8769,8 +8769,8 @@ vim_regcomp(expr, re_flags)
     int re_flags;
 {
     regprog_T   *prog = nfa_regengine.regcomp(expr, re_flags);
-    if (!prog)
-        EMSG("The NFA engine does not support this regular expression :( ");
+    if (prog == NULL)
+        EMSG2("The NFA engine does not support regular expression \"%s\" :( ", expr);
     return prog;
 }
 
