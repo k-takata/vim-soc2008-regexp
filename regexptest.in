@@ -1,0 +1,311 @@
+Test for regexp patterns.
+
+A pattern that gives the expected result produces OK, so that we know it was
+actually tried.
+
+STARTTEST
+:so small.vim
+:" tl is a List of Lists with:
+:"    regexp pattern
+:"    text to test the pattern on
+:"    expected match (optional)
+:"    expected submatch 1 (optional)
+:"    expected submatch 2 (optional)
+:"    etc.
+:"  When there is no match use only the first two items.
+:let tl = []
+
+:""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+:""""" Simple tests, with default magic option \m """""""""""""
+:""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+:""""" Search single groups
+:call add(tl, ['ab', 'aab', 'ab'])
+:call add(tl, ['ab', 'baced'])
+:call add(tl, ['ab', '                    ab           ', 'ab'])
+
+:" Search multi-modifiers
+:call add(tl, ['x*', 'xcd', 'x'])   
+:call add(tl, ['x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+:call add(tl, ['x*', 'abcdoij', ''])                    " empty match is good
+:call add(tl, ['x\+', 'abcdoin'])                       " no match here
+:call add(tl, ['x\+', 'abcdeoijdfxxiuhfij', 'xx'])
+:call add(tl, ['x\+', 'xxxxx', 'xxxxx'])
+:call add(tl, ['x\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+:call add(tl, ['x\=', 'x sdfoij', 'x'])
+:call add(tl, ['x\=', 'abc sfoij', '']) " empty match is good
+:call add(tl, ['x\=', 'xxxxxxxxx c', 'x'])
+:call add(tl, ['x\?', 'x sdfoij', 'x'])
+:call add(tl, ['x\?', 'abc sfoij', ''])                 " empty match is good
+:call add(tl, ['x\?', 'xxxxxxxxxx c', 'x'])
+
+:" Currently the following tests crash the NFA-based regexp engine (\{} is not implemented) ... 
+:call add(tl, ['a\{0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+:call add(tl, ['a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}' ???'
+:call add(tl, ['a\{3,6}', 'aa siofuh'])
+:call add(tl, ['a\{3,6}', 'aaaaa asfoij afaa', 'aaaaa'])
+:call add(tl, ['a\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+:call add(tl, ['a\{0}', 'asoiuj', ''])
+:call add(tl, ['a\{2}', 'aaaa', 'aa'])
+:call add(tl, ['a\{2}', 'iuash fiusahfliusah fiushfilushfi uhsaifuh askfj nasfvius afg aaaa sfiuhuhiushf', 'aa'])
+:call add(tl, ['a\{2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+:call add(tl, ['a\{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+:call add(tl, ['a\{0,}', 'aaaaa aa', 'aaaaa'])
+:call add(tl, ['a\{2,}', 'sdfiougjdsafg'])
+:call add(tl, ['a\{2,}', 'aaaaasfoij ', 'aaaaa'])
+:call add(tl, ['a\{,0}', 'oidfguih iuhi hiu aaaa', ''])
+:call add(tl, ['a\{,5}', 'abcd', 'a'])
+:call add(tl, ['a\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+:call add(tl, ['a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+:call add(tl, ['a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+
+:call add(tl, ['a\{-0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+:call add(tl, ['a\{-3,6}', 'aa siofuh'])
+:call add(tl, ['a\{-3,6}', 'aaaaa asfoij afaa', 'aaa'])
+:call add(tl, ['a\{-3,6}', 'aaaaaaaa', 'aaa'])
+:call add(tl, ['a\{-0}', 'asoiuj', ''])
+:call add(tl, ['a\{-2}', 'aaaa', 'aa'])
+:call add(tl, ['a\{-2}', 'abcdefghijklmnopqrestuvwxyz1234567890'])
+:call add(tl, ['a\{-0,}', 'oij sdigfusnf', ''])
+:call add(tl, ['a\{-0,}', 'aaaaa aa', ''])
+:call add(tl, ['a\{-2,}', 'sdfiougjdsafg'])
+:call add(tl, ['a\{-2,}', 'aaaaasfoij ', 'aa'])
+:call add(tl, ['a\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+:call add(tl, ['a\{-,5}', 'abcd', ''])
+:call add(tl, ['a\{-,5}', 'aaaaaaaaaa', ''])
+:call add(tl, ['a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
+:call add(tl, ['a\{-}', 'aaaaioudfh coisf jda', ''])
+
+:call add(tl, ['abc\@=', 'abc', 'ab'])
+:call add(tl, ['abc\@=cd', 'abcd', 'abcd'])
+:call add(tl, ['abc\@=', 'ababc', 'ab'])
+:call add(tl, ['abcd\@=e', 'abcd'])                     " will never match, no matter the input text
+:call add(tl, ['abcd\@=e', 'any text in here ... '])    " will never match
+:call add(tl, ['abc\@!', 'abc'])
+:call add(tl, ['abc\@!', 'abd', 'ab'])
+:call add(tl, ['c\@<=test', 'abctest', 'test'])
+:call add(tl, ['c\@<=test', 'abcdtest'])
+:call add(tl, ['c\@<!haha', 'chaha'])
+:call add(tl, ['c\@<!haha', 'abcd haha', 'haha'])
+:call add(tl, ['xyz\@>cd', 'xyzcd', 'xyzcd'])
+:call add(tl, ['xyz\@>cd', 'xyzc'])
+
+:""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+:"""" Tests using the \v, \V, \m, \M magic commands""""""
+:""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+:"""""""""""""""""" No magic \M """""""""""""""""""""""
+:" Search multi-modifiers
+:call add(tl, ['\Mx\*', 'xcd', 'x'])   
+:call add(tl, ['\Mx\*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+:call add(tl, ['\Mx\*', 'abcdoij', ''])                    " empty match is good
+:call add(tl, ['\Mx\+', 'abcdoin'])                       " no match here
+:call add(tl, ['\Mx\+', 'abcdeoijdfxxiuhfij', 'xx'])
+:call add(tl, ['\Mx\+', 'xxxxx', 'xxxxx'])
+:call add(tl, ['\Mx\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+:call add(tl, ['\Mx\=', 'x sdfoij', 'x'])
+:call add(tl, ['\Mx\=', 'abc sfoij', '']) " empty match is good
+:call add(tl, ['\Mx\=', 'xxxxxxxxx c', 'x'])
+:call add(tl, ['\Mx\?', 'x sdfoij', 'x'])
+:call add(tl, ['\Mx\?', 'abc sfoij', ''])                 " empty match is good
+:call add(tl, ['\Mx\?', 'xxxxxxxxxx c', 'x'])
+
+:call add(tl, ['\Ma\{0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['\Ma\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+:call add(tl, ['\Ma\{3,6}', 'aa siofuh'])
+:call add(tl, ['\Ma\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+:call add(tl, ['\Ma\{0}', 'asoiuj', ''])
+:call add(tl, ['\Ma\{2}', 'aaaa', 'aa'])
+:call add(tl, ['\Ma\{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+:call add(tl, ['\Ma\{2,}', 'sdfiougjdsafg'])
+:call add(tl, ['\Ma\{,5}', 'abcd', 'a'])
+:call add(tl, ['\Ma\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+:call add(tl, ['\Ma\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+:call add(tl, ['\Ma\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+
+:call add(tl, ['\Ma\{-0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['\Ma\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+:call add(tl, ['\Ma\{-3,6}', 'aa siofuh'])
+:call add(tl, ['\Ma\{-3,6}', 'aaaaaaaa', 'aaa'])
+:call add(tl, ['\Ma\{-0}', 'asoiuj', ''])
+:call add(tl, ['\Ma\{-2}', 'aaaa', 'aa'])
+:call add(tl, ['\Ma\{-0,}', 'oij sdigfusnf', ''])
+:call add(tl, ['\Ma\{-0,}', 'aaaaa aa', ''])
+:call add(tl, ['\Ma\{-2,}', 'sdfiougjdsafg'])
+:call add(tl, ['\Ma\{-2,}', 'aaaaasfoij ', 'aa'])
+:call add(tl, ['\Ma\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+:call add(tl, ['\Ma\{-,5}', 'abcd', ''])
+:call add(tl, ['\Ma\{-,5}', 'aaaaaaaaaa', ''])
+:call add(tl, ['\Ma\{-}', 'bbbcddiuhfcd', ''])        " anti-greedy version of 'a*'
+:call add(tl, ['\Ma\{-}', 'aaaaioudfh coisf jda', ''])
+
+:call add(tl, ['\Mabc\@=', 'abc', 'ab'])
+:call add(tl, ['\Mabc\@=cd', 'abcd', 'abcd'])
+:call add(tl, ['\Mabc\@=', 'ababc', 'ab'])
+:call add(tl, ['\Mabcd\@=e', 'abcd'])                     " will never match, no matter the input text
+:call add(tl, ['\Mabcd\@=e', 'any text in here ... '])    " will never match
+:call add(tl, ['\Mabc\@!', 'abc'])
+:call add(tl, ['\Mabc\@!', 'abd', 'ab'])
+:call add(tl, ['\Mc\@<=test', 'abctest', 'test'])
+:call add(tl, ['\Mc\@<=test', 'abcdtest'])
+:call add(tl, ['\Mc\@<!haha', 'chaha'])
+:call add(tl, ['\Mc\@<!haha', 'abcd haha', 'haha'])
+:call add(tl, ['\Mxyz\@>cd', 'xyzcd', 'xyzcd'])
+:call add(tl, ['\Mxyz\@>cd', 'xyzc'])
+
+:"""""""""""""""""" Very magic \v """""""""""""""""""""""
+:" Search multi-modifiers
+:call add(tl, ['\vx*', 'xcd', 'x'])   
+:call add(tl, ['\vx*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+:call add(tl, ['\vx*', 'abcdoij', ''])                    " empty match is good
+:call add(tl, ['\vx+', 'abcdoin'])                       " no match here
+:call add(tl, ['\vx+', 'abcdeoijdfxxiuhfij', 'xx'])
+:call add(tl, ['\vx+', 'xxxxx', 'xxxxx'])
+:call add(tl, ['\vx+', 'abc x siufhiush xxxxxxxxx', 'x'])
+:call add(tl, ['\vx=', 'x sdfoij', 'x'])
+:call add(tl, ['\vx=', 'abc sfoij', '']) " empty match is good
+:call add(tl, ['\vx=', 'xxxxxxxxx c', 'x'])
+:call add(tl, ['\vx?', 'x sdfoij', 'x'])
+:call add(tl, ['\vx?', 'abc sfoij', ''])                 " empty match is good
+:call add(tl, ['\vx?', 'xxxxxxxxxx c', 'x'])
+
+:call add(tl, ['\va{0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['\va{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+:call add(tl, ['\va{3,6}', 'aa siofuh'])
+:call add(tl, ['\va{3,6}', 'aaaaaaaa', 'aaaaaa'])
+:call add(tl, ['\va{0}', 'asoiuj', ''])
+:call add(tl, ['\va{2}', 'aaaa', 'aa'])
+:call add(tl, ['\va{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+:call add(tl, ['\va{2,}', 'sdfiougjdsafg'])
+:call add(tl, ['\va{,5}', 'abcd', 'a'])
+:call add(tl, ['\va{,5}', 'aaaaaaaaaa', 'aaaaa'])
+:call add(tl, ['\va{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+:call add(tl, ['\va{}', 'aaaaioudfh coisf jda', 'aaaa'])
+
+:call add(tl, ['\va{-0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['\va{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+:call add(tl, ['\va{-3,6}', 'aa siofuh'])
+:call add(tl, ['\va{-3,6}', 'aaaaaaaa', 'aaa'])
+:call add(tl, ['\va{-0}', 'asoiuj', ''])
+:call add(tl, ['\va{-2}', 'aaaa', 'aa'])
+:call add(tl, ['\va{-0,}', 'oij sdigfusnf', ''])
+:call add(tl, ['\va{-0,}', 'aaaaa aa', ''])
+:call add(tl, ['\va{-2,}', 'sdfiougjdsafg'])
+:call add(tl, ['\va{-2,}', 'aaaaasfoij ', 'aa'])
+:call add(tl, ['\va{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+:call add(tl, ['\va{-,5}', 'abcd', ''])
+:call add(tl, ['\va{-,5}', 'aaaaaaaaaa', ''])
+:call add(tl, ['\va{-}', 'bbbcddiuhfcd', ''])        " anti-greedy version of 'a*'
+:call add(tl, ['\va{-}', 'aaaaioudfh coisf jda', ''])
+
+:call add(tl, ['\vabc@=', 'abc', 'ab'])
+:call add(tl, ['\vabc@=cd', 'abcd', 'abcd'])
+:call add(tl, ['\vabc@=', 'ababc', 'ab'])
+:call add(tl, ['\vabcd@=e', 'abcd'])                     " will never match, no matter the input text
+:call add(tl, ['\vabcd@=e', 'any text in here ... '])    " will never match
+:call add(tl, ['\vabc@!', 'abc'])
+:call add(tl, ['\vabc@!', 'abd', 'ab'])
+:call add(tl, ['\vc@<=test', 'abctest', 'test'])
+:call add(tl, ['\vc@<=test', 'abcdtest'])
+:call add(tl, ['\vc@<!haha', 'chaha'])
+:call add(tl, ['\vc@<!haha', 'abcd haha', 'haha'])
+:call add(tl, ['\vxyz@>cd', 'xyzcd', 'xyzcd'])
+:call add(tl, ['\vxyz@>cd', 'xyzc'])
+
+:"""""""""""""""""" Very no magic \V """""""""""""""""""""""
+:" Search multi-modifiers
+:call add(tl, ['\Vx\*', 'xcd', 'x'])   
+:call add(tl, ['\Vx\*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
+:call add(tl, ['\Vx\*', 'abcdoij', ''])                    " empty match is good
+:call add(tl, ['\Vx\+', 'abcdoin'])                       " no match here
+:call add(tl, ['\Vx\+', 'abcdeoijdfxxiuhfij', 'xx'])
+:call add(tl, ['\Vx\+', 'xxxxx', 'xxxxx'])
+:call add(tl, ['\Vx\+', 'abc x siufhiush xxxxxxxxx', 'x'])
+:call add(tl, ['\Vx\=', 'x sdfoij', 'x'])
+:call add(tl, ['\Vx\=', 'abc sfoij', '']) " empty match is good
+:call add(tl, ['\Vx\=', 'xxxxxxxxx c', 'x'])
+:call add(tl, ['\Vx\?', 'x sdfoij', 'x'])
+:call add(tl, ['\Vx\?', 'abc sfoij', ''])                 " empty match is good
+:call add(tl, ['\Vx\?', 'xxxxxxxxxx c', 'x'])
+
+:call add(tl, ['\Va\{0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['\Va\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
+:call add(tl, ['\Va\{3,6}', 'aa siofuh'])
+:call add(tl, ['\Va\{3,6}', 'aaaaaaaa', 'aaaaaa'])
+:call add(tl, ['\Va\{0}', 'asoiuj', ''])
+:call add(tl, ['\Va\{2}', 'aaaa', 'aa'])
+:call add(tl, ['\Va\{0,}', 'oij sdigfusnf', ''])          " same thing as 'a*'
+:call add(tl, ['\Va\{2,}', 'sdfiougjdsafg'])
+:call add(tl, ['\Va\{,5}', 'abcd', 'a'])
+:call add(tl, ['\Va\{,5}', 'aaaaaaaaaa', 'aaaaa'])
+:call add(tl, ['\Va\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
+:call add(tl, ['\Va\{}', 'aaaaioudfh coisf jda', 'aaaa'])
+
+:call add(tl, ['\Va\{-0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['\Va\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
+:call add(tl, ['\Va\{-3,6}', 'aa siofuh'])
+:call add(tl, ['\Va\{-3,6}', 'aaaaaaaa', 'aaa'])
+:call add(tl, ['\Va\{-0}', 'asoiuj', ''])
+:call add(tl, ['\Va\{-2}', 'aaaa', 'aa'])
+:call add(tl, ['\Va\{-0,}', 'oij sdigfusnf', ''])
+:call add(tl, ['\Va\{-0,}', 'aaaaa aa', ''])
+:call add(tl, ['\Va\{-2,}', 'sdfiougjdsafg'])
+:call add(tl, ['\Va\{-2,}', 'aaaaasfoij ', 'aa'])
+:call add(tl, ['\Va\{-,0}', 'oidfguih iuhi hiu aaaa', ''])
+:call add(tl, ['\Va\{-,5}', 'abcd', ''])
+:call add(tl, ['\Va\{-,5}', 'aaaaaaaaaa', ''])
+:call add(tl, ['\Va\{-}', 'bbbcddiuhfcd', ''])        " anti-greedy version of 'a*'
+:call add(tl, ['\Va\{-}', 'aaaaioudfh coisf jda', ''])
+
+:call add(tl, ['\Vabc\@=', 'abc', 'ab'])
+:call add(tl, ['\Vabc\@=cd', 'abcd', 'abcd'])
+:call add(tl, ['\Vabc\@=', 'ababc', 'ab'])
+:call add(tl, ['\Vabcd\@=e', 'abcd'])                     " will never match, no matter the input text
+:call add(tl, ['\Vabcd\@=e', 'any text in here ... '])    " will never match
+:call add(tl, ['\Vabc\@!', 'abc'])
+:call add(tl, ['\Vabc\@!', 'abd', 'ab'])
+:call add(tl, ['\Vc\@<=test', 'abctest', 'test'])
+:call add(tl, ['\Vc\@<=test', 'abcdtest'])
+:call add(tl, ['\Vc\@<!haha', 'chaha'])
+:call add(tl, ['\Vc\@<!haha', 'abcd haha', 'haha'])
+:call add(tl, ['\Vxyz\@>cd', 'xyzcd', 'xyzcd'])
+:call add(tl, ['\Vxyz\@>cd', 'xyzc'])
+
+:"""" TODO: Write tests for \@ features
+
+:"
+:for t in tl
+:  let l = matchlist(t[1], t[0])
+:" check the match itself
+:  if len(l) == 0 && len(t) > 2
+:    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", did not match, expected: \"' . t[2] . '\"'
+:  elseif len(l) > 0 && len(t) == 2
+:    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected no match'
+:  elseif len(t) > 2 && l[0] != t[2]
+:    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected: \"' . t[2] . '\"'
+:  else
+:    $put ='OK'
+:  endif
+:  if len(l) > 0
+:"   check all the nine submatches
+:    for i in range(1, 9)
+:      if len(t) <= i + 2
+:        let e = ''
+:      else
+:        let e = t[i + 2]
+:      endif
+:      if l[i] != e
+:        $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", submatch ' . i . ': \"' . l[i] . '\", expected: \"' . e . '\"'
+:      endif
+:    endfor
+:    unlet i
+:  endif
+:endfor
+:unlet t tl e l 
+:/^Results/,$wq! test.out
+ENDTEST
+
+Results of regexptest:
+

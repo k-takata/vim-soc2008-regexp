@@ -1,0 +1,4 @@
+Run ALL regexp related rests with the command
+    $ make
+or only the new tests for regular expressions:
+    $ make new 
