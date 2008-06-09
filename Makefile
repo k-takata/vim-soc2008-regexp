@@ -10,7 +10,7 @@ VIMPROG = ../vim-both/src/vim
 
 SCRIPTS = 	regexptest.out test24.out test36.out test43.out \
 			test46.out test64.out \
-#			test44.out
+			test44.out
 
 SCRIPTS_GUI = test16.out
 

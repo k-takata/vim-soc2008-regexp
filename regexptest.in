@@ -19,7 +19,7 @@ STARTTEST
 :""""" Simple tests, with default magic option \m """""""""""""
 :""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-:""""" Search single groups
+:" Search single groups
 :call add(tl, ['ab', 'aab', 'ab'])
 :call add(tl, ['ab', 'baced'])
 :call add(tl, ['ab', '                    ab           ', 'ab'])
@@ -92,6 +92,15 @@ STARTTEST
 :call add(tl, ['xyz\@>cd', 'xyzcd', 'xyzcd'])
 :call add(tl, ['xyz\@>cd', 'xyzc'])
 
+:" Test groups of characters
+:call add(tl, ['\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
+:call add(tl, ['\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+:call add(tl, ['\(abaaaaa\)*cd', 'cd', 'cd', ''])
+:call add(tl, ['\(test1\)\? \(test2\)\?', 'test1 test3', 'test1 ', 'test1', ''])
+:call add(tl, ['\(test1\)\= \(test2\) \(test4443\)\=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
+:call add(tl, ['\(\(sub1\) hello \(sub 2\)\)', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
+:call add(tl, ['\(\(\(yyxxzz\)\)\)', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
+
 :""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 :"""" Tests using the \v, \V, \m, \M magic commands""""""
 :""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -155,6 +164,15 @@ STARTTEST
 :call add(tl, ['\Mxyz\@>cd', 'xyzcd', 'xyzcd'])
 :call add(tl, ['\Mxyz\@>cd', 'xyzc'])
 
+:" Test groups of characters
+:call add(tl, ['\M\(abc\)\*', 'abcabcabc', 'abcabcabc', 'abc'])
+:call add(tl, ['\M\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+:call add(tl, ['\M\(abaaaaa\)\*cd', 'cd', 'cd', ''])
+:call add(tl, ['\M\(test1\)\? \(test2\)\?', 'test1 test3', 'test1 ', 'test1', ''])
+:call add(tl, ['\M\(test1\)\= \(test2\) \(test4443\)\=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
+:call add(tl, ['\M\(\(sub1\) hello \(sub 2\)\)', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
+:call add(tl, ['\M\(\(\(yyxxzz\)\)\)', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
+
 :"""""""""""""""""" Very magic \v """""""""""""""""""""""
 :" Search multi-modifiers
 :call add(tl, ['\vx*', 'xcd', 'x'])   
@@ -213,6 +231,15 @@ STARTTEST
 :call add(tl, ['\vc@<!haha', 'abcd haha', 'haha'])
 :call add(tl, ['\vxyz@>cd', 'xyzcd', 'xyzcd'])
 :call add(tl, ['\vxyz@>cd', 'xyzc'])
+
+:" Test groups of characters
+:call add(tl, ['\v(abc)*', 'abcabcabc', 'abcabcabc', 'abc'])
+:call add(tl, ['\v(ab)+', 'abababaaaaa', 'ababab', 'ab'])
+:call add(tl, ['\v(abaaaaa)*cd', 'cd', 'cd', ''])
+:call add(tl, ['\v(test1)? (test2)?', 'test1 test3', 'test1 ', 'test1', ''])
+:call add(tl, ['\v(test1)= (test2) (test4443)=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
+:call add(tl, ['\v((sub1) hello (sub 2))', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
+:call add(tl, ['\v(((yyxxzz)))', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
 
 :"""""""""""""""""" Very no magic \V """""""""""""""""""""""
 :" Search multi-modifiers
@@ -273,7 +300,18 @@ STARTTEST
 :call add(tl, ['\Vxyz\@>cd', 'xyzcd', 'xyzcd'])
 :call add(tl, ['\Vxyz\@>cd', 'xyzc'])
 
+:" Test groups of characters
+:call add(tl, ['\V\(abc\)\*', 'abcabcabc', 'abcabcabc', 'abc'])
+:call add(tl, ['\V\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
+:call add(tl, ['\V\(abaaaaa\)\*cd', 'cd', 'cd', ''])
+:call add(tl, ['\V\(test1\)\? \(test2\)\?', 'test1 test3', 'test1 ', 'test1', ''])
+:call add(tl, ['\V\(test1\)\= \(test2\) \(test4443\)\=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
+:call add(tl, ['\V\(\(sub1\) hello \(sub 2\)\)', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
+:call add(tl, ['\V\(\(\(yyxxzz\)\)\)', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
+
+
 :"""" TODO: Write tests for \@ features
+
 
 :"
 :for t in tl
