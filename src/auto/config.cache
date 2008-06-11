@@ -14,15 +14,15 @@
 ac_cv_c_compiler_gnu=${ac_cv_c_compiler_gnu=yes}
 ac_cv_c_const=${ac_cv_c_const=yes}
 ac_cv_env_CC_set=set
-ac_cv_env_CC_value=gcc
+ac_cv_env_CC_value=
 ac_cv_env_CFLAGS_set=set
-ac_cv_env_CFLAGS_value='-O2 -fno-strength-reduce -Wall'
+ac_cv_env_CFLAGS_value=-g
 ac_cv_env_CPPFLAGS_set=set
 ac_cv_env_CPPFLAGS_value=
 ac_cv_env_CPP_set=
 ac_cv_env_CPP_value=
 ac_cv_env_LDFLAGS_set=set
-ac_cv_env_LDFLAGS_value=-L/usr/local/lib
+ac_cv_env_LDFLAGS_value=
 ac_cv_env_build_alias_set=
 ac_cv_env_build_alias_value=
 ac_cv_env_host_alias_set=
@@ -32,14 +32,12 @@ ac_cv_env_target_alias_value=
 ac_cv_exeext=${ac_cv_exeext=}
 ac_cv_func_bcmp=${ac_cv_func_bcmp=yes}
 ac_cv_func_bind_textdomain_codeset=${ac_cv_func_bind_textdomain_codeset=yes}
-ac_cv_func_connect=${ac_cv_func_connect=yes}
 ac_cv_func_fchdir=${ac_cv_func_fchdir=yes}
 ac_cv_func_fchown=${ac_cv_func_fchown=yes}
 ac_cv_func_fseeko=${ac_cv_func_fseeko=yes}
 ac_cv_func_fsync=${ac_cv_func_fsync=yes}
 ac_cv_func_ftello=${ac_cv_func_ftello=yes}
 ac_cv_func_getcwd=${ac_cv_func_getcwd=yes}
-ac_cv_func_gethostbyname=${ac_cv_func_gethostbyname=yes}
 ac_cv_func_getpseudotty=${ac_cv_func_getpseudotty=no}
 ac_cv_func_getpwnam=${ac_cv_func_getpwnam=yes}
 ac_cv_func_getpwuid=${ac_cv_func_getpwuid=yes}
@@ -55,12 +53,10 @@ ac_cv_func_opendir=${ac_cv_func_opendir=yes}
 ac_cv_func_putenv=${ac_cv_func_putenv=yes}
 ac_cv_func_qsort=${ac_cv_func_qsort=yes}
 ac_cv_func_readlink=${ac_cv_func_readlink=yes}
-ac_cv_func_remove=${ac_cv_func_remove=yes}
 ac_cv_func_select=${ac_cv_func_select=yes}
 ac_cv_func_setenv=${ac_cv_func_setenv=yes}
 ac_cv_func_setpgid=${ac_cv_func_setpgid=yes}
 ac_cv_func_setsid=${ac_cv_func_setsid=yes}
-ac_cv_func_shmat=${ac_cv_func_shmat=yes}
 ac_cv_func_sigaction=${ac_cv_func_sigaction=yes}
 ac_cv_func_sigaltstack=${ac_cv_func_sigaltstack=yes}
 ac_cv_func_sigset=${ac_cv_func_sigset=yes}
@@ -81,10 +77,8 @@ ac_cv_func_towupper=${ac_cv_func_towupper=yes}
 ac_cv_func_usleep=${ac_cv_func_usleep=yes}
 ac_cv_func_utime=${ac_cv_func_utime=yes}
 ac_cv_func_utimes=${ac_cv_func_utimes=yes}
-ac_cv_have_x=${ac_cv_have_x='have_x=yes 		ac_x_includes= ac_x_libraries='}
-ac_cv_header_X11_SM_SMlib_h=${ac_cv_header_X11_SM_SMlib_h=yes}
-ac_cv_header_X11_Sunkeysym_h=${ac_cv_header_X11_Sunkeysym_h=yes}
-ac_cv_header_X11_xpm_h=${ac_cv_header_X11_xpm_h=no}
+ac_cv_have_x=${ac_cv_have_x=have_x=no}
+ac_cv_header_X11_SM_SMlib_h=${ac_cv_header_X11_SM_SMlib_h=no}
 ac_cv_header_dirent_dirent_h=${ac_cv_header_dirent_dirent_h=yes}
 ac_cv_header_dlfcn_h=${ac_cv_header_dlfcn_h=yes}
 ac_cv_header_elf_h=${ac_cv_header_elf_h=yes}
@@ -108,7 +102,7 @@ ac_cv_header_string_h=${ac_cv_header_string_h=yes}
 ac_cv_header_strings_h=${ac_cv_header_strings_h=yes}
 ac_cv_header_stropts_h=${ac_cv_header_stropts_h=yes}
 ac_cv_header_sys_access_h=${ac_cv_header_sys_access_h=no}
-ac_cv_header_sys_acl_h=${ac_cv_header_sys_acl_h=yes}
+ac_cv_header_sys_acl_h=${ac_cv_header_sys_acl_h=no}
 ac_cv_header_sys_ioctl_h=${ac_cv_header_sys_ioctl_h=yes}
 ac_cv_header_sys_param_h=${ac_cv_header_sys_param_h=yes}
 ac_cv_header_sys_poll_h=${ac_cv_header_sys_poll_h=yes}
@@ -134,12 +128,7 @@ ac_cv_header_util_msg18n_h=${ac_cv_header_util_msg18n_h=no}
 ac_cv_header_utime_h=${ac_cv_header_utime_h=yes}
 ac_cv_header_wchar_h=${ac_cv_header_wchar_h=yes}
 ac_cv_header_wctype_h=${ac_cv_header_wctype_h=yes}
-ac_cv_lib_ICE_IceConnectionNumber=${ac_cv_lib_ICE_IceConnectionNumber=yes}
-ac_cv_lib_ICE_IceOpenConnection=${ac_cv_lib_ICE_IceOpenConnection=yes}
-ac_cv_lib_Xdmcp__XdmcpAuthDoIt=${ac_cv_lib_Xdmcp__XdmcpAuthDoIt=yes}
-ac_cv_lib_Xpm_XpmCreatePixmapFromData=${ac_cv_lib_Xpm_XpmCreatePixmapFromData=no}
-ac_cv_lib_acl_acl_get_file=${ac_cv_lib_acl_acl_get_file=yes}
-ac_cv_lib_attr_fgetxattr=${ac_cv_lib_attr_fgetxattr=yes}
+ac_cv_lib_acl_acl_get_file=${ac_cv_lib_acl_acl_get_file=no}
 ac_cv_lib_elf_main=${ac_cv_lib_elf_main=no}
 ac_cv_lib_ncurses___tgetent=${ac_cv_lib_ncurses___tgetent=yes}
 ac_cv_lib_nsl_gethostbyname=${ac_cv_lib_nsl_gethostbyname=yes}
@@ -148,9 +137,6 @@ ac_cv_lib_selinux_is_selinux_enabled=${ac_cv_lib_selinux_is_selinux_enabled=no}
 ac_cv_lib_socket_socket=${ac_cv_lib_socket_socket=no}
 ac_cv_lib_xpg4__xpg4_setrunelocale=${ac_cv_lib_xpg4__xpg4_setrunelocale=no}
 ac_cv_objext=${ac_cv_objext=o}
-ac_cv_path_GTK12_CONFIG=${ac_cv_path_GTK12_CONFIG=no}
-ac_cv_path_GTK_CONFIG=${ac_cv_path_GTK_CONFIG=no}
-ac_cv_path_PKG_CONFIG=${ac_cv_path_PKG_CONFIG=/usr/bin/pkg-config}
 ac_cv_path_xmkmfpath=${ac_cv_path_xmkmfpath=/usr/bin/xmkmf}
 ac_cv_prog_AWK=${ac_cv_prog_AWK=gawk}
 ac_cv_prog_CPP=${ac_cv_prog_CPP='gcc -E'}
