@@ -3119,7 +3119,7 @@ typedef struct regbehind_S
 } regbehind_T;
 
 static char_u	*reg_getline __ARGS((linenr_T lnum));
-static long	vim_regexec_both __ARGS((char_u *line, colnr_T col, proftime_T *tm));
+static long	bt_regexec_both __ARGS((char_u *line, colnr_T col, proftime_T *tm));
 static long	regtry __ARGS((bt_regprog_T *prog, colnr_T col));
 static void	cleanup_subexpr __ARGS((void));
 #ifdef FEAT_SYN_HL
@@ -3177,7 +3177,7 @@ static colnr_T	ireg_maxcol;
 /*
  * Sometimes need to save a copy of a line.  Since alloc()/free() is very
  * slow, we keep one allocated piece of memory and only re-allocate it when
- * it's too small.  It's freed in vim_regexec_both() when finished.
+ * it's too small.  It's freed in bt_regexec_both() when finished.
  */
 static char_u	*reg_tofree = NULL;
 static unsigned	reg_tofreelen;
@@ -3358,7 +3358,7 @@ bt_regexec(rmp, line, col)
     ireg_icombine = FALSE;
 #endif
     ireg_maxcol = 0;
-    return (vim_regexec_both(line, col, NULL) != 0);
+    return (bt_regexec_both(line, col, NULL) != 0);
 }
 
 #if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
@@ -3382,7 +3382,7 @@ bt_regexec_nl(rmp, line, col)
     ireg_icombine = FALSE;
 #endif
     ireg_maxcol = 0;
-    return (vim_regexec_both(line, col, NULL) != 0);
+    return (bt_regexec_both(line, col, NULL) != 0);
 }
 #endif
 
@@ -3421,7 +3421,7 @@ bt_regexec_multi(rmp, win, buf, lnum, col, tm)
 
     /* Need to switch to buffer "buf" to make vim_iswordc() work. */
     curbuf = buf;
-    r = vim_regexec_both(NULL, col, tm);
+    r = bt_regexec_both(NULL, col, tm);
     curbuf = save_curbuf;
 
     return r;
@@ -3433,7 +3433,7 @@ bt_regexec_multi(rmp, win, buf, lnum, col, tm)
  */
 /*ARGSUSED*/
     static long
-vim_regexec_both(line, col, tm)
+bt_regexec_both(line, col, tm)
     char_u	*line;
     colnr_T	col;		/* column to start looking for match */
     proftime_T	*tm;		/* timeout limit or NULL */
@@ -3844,7 +3844,7 @@ regmatch(scan)
 #define RA_NOMATCH	5	/* didn't match */
 
   /* Make "regstack" and "backpos" empty.  They are allocated and freed in
-   * vim_regexec_both() to reduce malloc()/free() calls. */
+   * bt_regexec_both() to reduce malloc()/free() calls. */
   regstack.ga_len = 0;
   backpos.ga_len = 0;
 
@@ -8769,8 +8769,13 @@ vim_regcomp(expr, re_flags)
     int re_flags;
 {
     regprog_T   *prog = nfa_regengine.regcomp(expr, re_flags);
-    if (prog == NULL)
-        EMSG2("The NFA engine does not support regular expression \"%s\" :( ", expr);
+    if (prog == NULL || has_mbyte
+//#ifdef FEAT_MBYTE
+//        ||  has_mbyte
+//#endif
+                    )
+        prog = bt_regengine.regcomp(expr, re_flags);
+
     return prog;
 }
 
