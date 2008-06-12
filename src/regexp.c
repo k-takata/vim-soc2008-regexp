@@ -8769,7 +8769,7 @@ vim_regcomp(expr, re_flags)
     int re_flags;
 {
     regprog_T   *prog = nfa_regengine.regcomp(expr, re_flags);
-    if (prog == NULL || has_mbyte
+    if (prog == NULL 
 //#ifdef FEAT_MBYTE
 //        ||  has_mbyte
 //#endif

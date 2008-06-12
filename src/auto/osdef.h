@@ -129,6 +129,8 @@ extern int	sigsetjmp __ARGS((sigjmp_buf, int));
 #endif
 
 #ifdef ISC
+extern int	_Xmblen __ARGS((char const *, size_t));
 #else
 		/* This is different from the header but matches mblen() */
+extern int	_Xmblen __ARGS((char *, size_t));
 #endif
