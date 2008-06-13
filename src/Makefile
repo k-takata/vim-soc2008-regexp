@@ -316,7 +316,7 @@ CClink = $(CC)
 # Uncomment this line when you don't want to get the GUI version, although you
 # have GTK, Motif and/or Athena.  Also use --without-x if you don't want X11
 # at all.
-CONF_OPT_GUI = --disable-gui
+#CONF_OPT_GUI = --disable-gui
 
 # Uncomment one of these lines if you have that GUI but don't want to use it.
 # The automatic check will use another one that can be found.

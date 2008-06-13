@@ -21,6 +21,12 @@
  */
 #define NSUBEXP  10
 
+/*
+ * In the NFA engine: how many braces are allowed. 
+ * TODO: Use dynamic memory allocation instead of static, like here
+ */
+#define NFA_MAX_BRACES 20
+
 typedef struct regengine regengine_T;
 
 typedef struct thread Thread;
@@ -38,7 +44,7 @@ typedef struct regprog
 /*
  * Structure used by the back track matcher.
  * These fields are only to be used in regexp.c!
- * See regep.c for an explanation.
+ * See regexp.c for an explanation.
  */
 typedef struct
 {
@@ -60,7 +66,7 @@ typedef struct
 typedef struct nfa_state nfa_state_T;
 struct nfa_state
 {
-    int			c;
+    int			c;              /* The most important field: character/node ID */
     nfa_state_T		*out;
     nfa_state_T		*out1;
     int			id;

@@ -278,10 +278,10 @@
 /* #undef FEAT_NORMAL */
 
 /* Define if you want big features. */
-/* #undef FEAT_BIG */
+#define FEAT_BIG 1
 
 /* Define if you want huge features. */
-#define FEAT_HUGE 1
+/* #undef FEAT_HUGE */
 
 /* Define if you want to include the MzScheme interpreter. */
 /* #undef FEAT_MZSCHEME */
@@ -313,7 +313,7 @@
 /* #undef FEAT_CSCOPE */
 
 /* Define if you want to include multibyte support. */
-/* #undef FEAT_MBYTE */
+#define FEAT_MBYTE 1
 
 /* Define if you want to include fontset support. */
 /* #undef FEAT_XFONTSET */

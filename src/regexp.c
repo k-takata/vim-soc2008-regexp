@@ -40,7 +40,7 @@
 
 #include "vim.h"
 
-#undef DEBUG
+//#undef DEBUG
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -235,8 +235,11 @@
 /* For NFA. TODO is there a way of sharing definitions above? */
 enum
 {
-    NFA_SPLIT = -1024,
-    NFA_MATCH,
+NFA_SPLIT = -1024,
+NFA_MATCH,
+NFA_BRACES,
+NFA_BRACE_MIN,
+NFA_BRACE_MAX,
 
     NFA_CONCAT,
     NFA_OR,
@@ -392,7 +395,7 @@ static int cstrncmp __ARGS((char_u *s1, char_u *s2, int *n));
 static char_u *cstrchr __ARGS((char_u *, int));
 
 #ifdef DEBUG
-static void	regdump __ARGS((char_u *, regprog_T *));
+static void	regdump __ARGS((char_u *, bt_regprog_T *));
 static char_u	*regprop __ARGS((char_u *));
 #endif
 
@@ -1171,7 +1174,7 @@ bt_regcomp(expr, re_flags)
 	}
     }
 #ifdef DEBUG
-    regdump(expr, r);
+    //regdump(expr, r);
 #endif
     r->engine = &bt_regengine;
     return (regprog_T *)r;
@@ -6090,7 +6093,7 @@ re_num_cmp(val, scan)
     static void
 regdump(pattern, r)
     char_u	*pattern;
-    regprog_T	*r;
+    bt_regprog_T	*r;
 {
     char_u  *s;
     int	    op = EXACTLY;	/* Arbitrary non-END op. */
@@ -7365,6 +7368,11 @@ static regengine_T bt_regengine =
 
 /******************** Below are NFA regexp *********************/
 
+#ifdef DEBUG
+static void nfa_regdump __ARGS((char_u *expr, int retval));      // debugging
+#endif
+
+
 static int *post_start;  /* holds the postfix form of r.e. */
 static int *post_end;
 static int *post_ptr;
@@ -7407,6 +7415,10 @@ nfa_regatom()
     int		extra = 0;
 
     c = getchr();
+    /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
+     * Fail and revert to old engine */
+    if ((*mb_char2len)(c)>1)
+        return FAIL;
     switch (c)
     {
 	case Magic('^'):
@@ -7495,7 +7507,7 @@ nfa_regatom()
 	    if (enc_utf8 && c == Magic('.') && utf_iscomposing(peekchr()))
 	    {
 	        c = getchr();
-	        goto do_multibyte;
+	        goto nfa_do_multibyte;
 	    }
 #endif
 	    /* only '.' is supported for now */
@@ -7534,9 +7546,9 @@ nfa_regatom()
 	case Magic('?'):
 	case Magic('+'):
 	case Magic('@'):
-	case Magic('{'):
 	case Magic('*'):
-	    return FAIL;
+	case Magic('{'):
+	    return FAIL;		/* these should follow an atom, not form an atom */
 
 	case Magic('~'):		/* previous substitute pattern */
 	    /* Not supported yet */
@@ -7569,10 +7581,11 @@ nfa_regatom()
 #ifdef FEAT_MBYTE
 	    /* A multi-byte character is handled as a separate atom if it's
 	     * before a multi and when it's a composing char. */
+nfa_do_multibyte:
 	    if (has_mbyte && (*mb_char2len)(c) > 1
 			     && (enc_utf8 && utf_iscomposing(c)))
 	    {
-do_multibyte:
+
 	    /* composing char not supported yet */
 		return FAIL;
 	    }
@@ -7588,6 +7601,11 @@ do_multibyte:
     }
     return OK;
 }
+
+/* Store the lower/upper limits for the \{m,n} construct.  */
+static long nfa_minlimit[NFA_MAX_BRACES];
+static long nfa_maxlimit[NFA_MAX_BRACES];       
+static int brace_index = 0;         /* Count of brace and limits */
 
 /*
  * regpiece - something followed by possible [*+=]
@@ -7605,6 +7623,8 @@ nfa_regpiece()
 {
     int		op;
     int		ret;
+    long 	minval, maxval;
+    int         anti_greedy=FALSE;      /* Braces are prefixed with '-' */
 
     ret = nfa_regatom();
     if (ret == FAIL)
@@ -7634,9 +7654,30 @@ nfa_regpiece()
 	    EMIT(NFA_QUEST);
 	    break;
 
-	case Magic('{'):
+	case Magic('{'):	
+            if (peekchr() == '-')       /* greedy or anti-greedy matching? */
+            {
+                skipchr();
+                anti_greedy = TRUE;
+                /* {-m,n} is not supported yet */
+                return FAIL;
+            }
+	    if (!read_limits(&minval, &maxval))
+		return FAIL;
+
+            EMIT(NFA_BRACES); 
+            nfa_minlimit[brace_index] = anti_greedy ? minval * -1 : minval;
+            nfa_maxlimit[brace_index] = anti_greedy ? maxval * -1 : maxval; 
+            brace_index++;
+/*
+	    if (anti_greedy)
+                EMSG("Braces are *anti* greedy !");
+            else
+                EMSG("Braces are greedy !");
+            EMSG3("Limits are: %d, %d", minval, maxval);    */
+
 	    /* Not supported yet */
-	    return FAIL;
+	    return OK;
 
 	default:
 	    break;
@@ -7833,7 +7874,7 @@ nfa_regcomp_start(expr, re_flags)
     vim_memset(post_start, 0, postfix_size);
     post_ptr = post_start;
     post_end = post_start + postfix_size;
-
+	
     regcomp_start(expr, re_flags);
 
     return OK;
@@ -7848,6 +7889,29 @@ typedef struct
     lpos_T	endpos[NSUBEXP];
 } regsub_T;
 
+#ifdef DEBUG
+static void nfa_regdump __ARGS((char_u *expr, int retval))
+{
+    FILE *f;
+    if (f=fopen("regexp.log","a"))
+    {
+        if (!retval)
+            fprintf(f,">>> NFA engine failed ... \n");
+        else
+            fprintf(f,">>> NFA engine succeeded !\n");
+	fprintf(f,"Regexp: \"%s\"\nPostfix notation (char): \"", expr);
+	int *p;
+	for (p=post_start; *p; p++)
+		fprintf(f,"%c", (char)(*p));
+	fprintf(f,"\"\nPostfix notation (int): ");
+	for (p=post_start; *p; p++)
+		fprintf(f,"%d ", *p);
+	fprintf(f,"\n-------------------------\n");
+	fclose(f);
+    }
+}
+#endif
+
 /*
  * Parse r.e. @expr and convert it into postfix form.
  * Return the postfix string on success, NULL otherwise.
@@ -7858,7 +7922,16 @@ re2post(expr, re_flags)
     int		re_flags;
 {
     if (nfa_reg(REG_NOPAREN) == FAIL)
+    {
+#ifdef DEBUG
+        nfa_regdump(expr, FALSE);        /* dump re when failed to compile */
+#endif
 	return NULL;
+    }
+
+#ifdef DEBUG
+        nfa_regdump(expr, TRUE);        /* also dump when successful :-) */
+#endif
     EMIT(NFA_MOPEN);
     return post_start;
 }
@@ -7994,6 +8067,7 @@ post2nfa(postfix)
     int		*p;
     Frag	*stackp, *stack_end, e1, e2, e;
     nfa_state_T	*s, *s1, *matchstate;
+    int         _braces_index = 0;      /* index for nfa_minlimit[] and nfa_maxlimit[] */
 
     if (postfix == NULL)
         return NULL;
@@ -8068,7 +8142,29 @@ post2nfa(postfix)
 	    PUSH(frag(e.start, list1(&s->out1)));
 	    break;
 
+        case NFA_BRACES:        /* {m,n}  and relatives */
+            /* Trick : insert two special states, that enforce repetitions.
+             * Lower/Upper limit is stored in field "id". */
+            e = POP();
+            s = new_state(NFA_BRACE_MIN, NULL, e.start);    /* node for lower limit */
+            if (s == NULL)
+                return NULL;
+            s->id = nfa_minlimit[_braces_index];
+            patch(e.out, s);
+            PUSH(frag(e.start, list1(&s->out)));
+
+            e = POP();
+            s = new_state(NFA_BRACE_MAX, NULL, e.start);    /* node for upper limit */
+            if (s == NULL)
+                return NULL;
+            s->id = nfa_maxlimit[_braces_index++];
+            patch(e.out, s);
+            PUSH(frag(e.start, list1(&s->out)));
+            break;
+
 	case NFA_MOPEN + 0:	/* Submatch */
+        /* {-m,n} is not supported yet */
+        return FAIL;
 	case NFA_MOPEN + 1:
 	case NFA_MOPEN + 2:
 	case NFA_MOPEN + 3:
@@ -8264,6 +8360,7 @@ nfa_regmatch(start, submatch)
     regsub_T		*submatch;
 {
     int		c, subidx, n, i = 0;
+    int         lower, upper;       /* limits for curly braces */
     int		match = FALSE;
     int		flag = 0;
     int		reginput_updated = FALSE;
@@ -8414,6 +8511,23 @@ process_current_states:
 		    reginput_updated = TRUE;
 		}
 		break;
+
+            case NFA_BRACE_MIN:         /* minimum repetition count */
+                lower = t->state->id;
+                if (t->state->visits >= lower)      
+                    addstate(nextlist, t->state->out, &t->sub, n, listid+1);    /* advance */
+                addstate(nextlist, t->state->out1, &t->sub, n, listid+1);       /* repeat once 
+                                                                            more previous atom */
+                break;
+
+            case NFA_BRACE_MAX:         /* maximum repetition count */
+                upper = t->state->id;
+                if (t->state->visits <= upper)
+                    addstate(nextlist, t->state->out, &t->sub, n, listid+1);    /* advance */
+                /* TODO: Is the next instruction really necessary? */
+                addstate(nextlist, t->state->out1, &t->sub, n, listid+1);       /* repeat once more
+                                                                                previous atom */
+                break;
 
 	    default:	/* regular character */
 		if (t->state->c == c)
@@ -8573,12 +8687,13 @@ nfa_regexec_both(line, col)
 
     /* TODO need speedup */
     for (i = 0; i < nstate; ++i)
-    {
-	prog->state[i].id = 0;
-	prog->state[i].lastlist = 0;
-	prog->state[i].visits = 0;
-	prog->state[i].lastthread = NULL;
-    }
+        {
+            if (prog->state[i].c != NFA_BRACE_MAX && prog->state[i].c != NFA_BRACE_MIN)
+                    prog->state[i].id = 0;
+            prog->state[i].lastlist = 0;
+            prog->state[i].visits = 0;
+            prog->state[i].lastthread = NULL;
+        }
 
     retval = nfa_regtry(prog->start, col);
 
@@ -8621,6 +8736,7 @@ nfa_regcomp(expr, re_flags)
     vim_memset(prog, 0, prog_size);
 
     state_ptr = prog->state;
+    brace_index = 0;
 
     prog->start = post2nfa(re2post(expr, re_flags));
     if (prog->start == NULL)
@@ -8768,14 +8884,24 @@ vim_regcomp(expr, re_flags)
     char_u *expr;
     int re_flags;
 {
-    regprog_T   *prog = nfa_regengine.regcomp(expr, re_flags);
-    if (prog == NULL 
-//#ifdef FEAT_MBYTE
-//        ||  has_mbyte
-//#endif
-                    )
+    // First try the NFA engine
+    regprog_T   *prog = NULL;
+    prog = nfa_regengine.regcomp(expr, re_flags);
+    // If failed or multi-byte characters (not fully supported), then revert to old engine
+    if (prog == NULL)
+    {
+#ifdef DEBUG
+	FILE *f;
+	if (f=fopen("debug.log","a"))
+	{
+		fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
+		fclose(f);
+	}
+//        EMSG("ERROR !! NFA engine does not suport this regexp ! Reverting to old engine ... ");
+#endif
+	// use old engine
         prog = bt_regengine.regcomp(expr, re_flags);
-
+    }
     return prog;
 }
 
