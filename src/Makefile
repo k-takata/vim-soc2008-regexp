@@ -508,7 +508,7 @@ CONF_OPT_FEAT = --with-features=huge
 # When not defined, configure will try to use -O2 -g for gcc and -O for cc.
 #CFLAGS = -g
 #CFLAGS = -O
-CFLAGS = -g3 
+CFLAGS = -g3 -DDEBUG
 
 # Optimization limits - depends on the compiler.  Automatic check in configure
 # doesn't work very well, because many compilers only give a warning for

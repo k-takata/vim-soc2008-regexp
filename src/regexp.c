@@ -7369,9 +7369,25 @@ static regengine_T bt_regengine =
 /******************** Below are NFA regexp *********************/
 
 #ifdef DEBUG
-static void nfa_regdump __ARGS((char_u *expr, int retval));      // debugging
+static void nfa_postfix_dump __ARGS((char_u *expr, int retval));
+static void nfa_dump __ARGS((nfa_regprog_T *prog));
 #endif
 
+/*
+* Need a way to distinguish between syntax errors and unsupported features in NFA as return codes
+*/
+static int syntax_error = FALSE;
+#define SYNTAX_ERROR();             \
+        if (1)                      \
+        {                           \
+            syntax_error = TRUE;    \
+            return FAIL;            \
+        }
+/*
+* Unsupported features fail silently (with no error displayed), and we revert to the old engine.
+* Syntax errors: display error and do not revert to the old engine. TODO !!! Test this
+* Other (runtime) errors will be displayed by the NFA regexp engine. TODO !!! Call old engine afterwards?
+*/
 
 static int *post_start;  /* holds the postfix form of r.e. */
 static int *post_end;
@@ -7418,7 +7434,7 @@ nfa_regatom()
     /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
      * Fail and revert to old engine */
     if ((*mb_char2len)(c)>1)
-        return FAIL;
+        return FAIL;            /* Unsupported */
     switch (c)
     {
 	case Magic('^'):
@@ -7456,7 +7472,7 @@ nfa_regatom()
 		break;
 	    }
 
-	    return FAIL;
+	    return FAIL;        /* FIXME: Why fail here ? */
 
 	    extra = ADD_NL;
 
@@ -7500,7 +7516,7 @@ nfa_regatom()
 	case Magic('U'):
 	    p = vim_strchr(classchars, no_Magic(c));
 	    if (p == NULL)
-		return FAIL;
+		return FAIL;            /* runtime error */
 #ifdef FEAT_MBYTE
 	    /* When '.' is followed by a composing char ignore the dot, so that
 	     * the composing char is matched here. */
@@ -7517,7 +7533,7 @@ nfa_regatom()
 		break;
 	    }
 	    else
-		return FAIL;
+		return FAIL;        /* unsupported */
 
 	case Magic('n'):
 	    if (reg_string)
@@ -7533,14 +7549,16 @@ nfa_regatom()
 
 	case Magic('('):
 	    if (nfa_reg(REG_PAREN) == FAIL)
-		return FAIL;
+            {
+                SYNTAX_ERROR();
+            }
 	    break;
 
 	case NUL:
 	case Magic('|'):
 	case Magic('&'):
 	case Magic(')'):
-	    return FAIL;
+	    return FAIL;    /* not supported yet */
 
 	case Magic('='):
 	case Magic('?'):
@@ -7548,7 +7566,7 @@ nfa_regatom()
 	case Magic('@'):
 	case Magic('*'):
 	case Magic('{'):
-	    return FAIL;		/* these should follow an atom, not form an atom */
+	    SYNTAX_ERROR();		/* these should follow an atom, not form an atom */
 
 	case Magic('~'):		/* previous substitute pattern */
 	    /* Not supported yet */
@@ -7628,7 +7646,9 @@ nfa_regpiece()
 
     ret = nfa_regatom();
     if (ret == FAIL)
-	return FAIL;
+    {
+        SYNTAX_ERROR();
+    }
 
     op = peekchr();
     if (re_multi_type(op) == NOT_MULTI)
@@ -7663,7 +7683,7 @@ nfa_regpiece()
                 return FAIL;
             }
 	    if (!read_limits(&minval, &maxval))
-		return FAIL;
+                SYNTAX_ERROR();
 
             EMIT(NFA_BRACES); 
             nfa_minlimit[brace_index] = anti_greedy ? minval * -1 : minval;
@@ -7684,7 +7704,7 @@ nfa_regpiece()
     }
     if (re_multi_type(peekchr()) != NOT_MULTI)
 	/* Can't have a multi follow a multi. */
-	return FAIL;
+        SYNTAX_ERROR();
 
     return OK;
 }
@@ -7753,7 +7773,9 @@ nfa_regconcat()
 
 	    default:
 		if (nfa_regpiece() == FAIL)
-		    return FAIL;
+                {
+                    SYNTAX_ERROR();
+                }
 		if (first == TRUE)
 		    first = FALSE;
 		else
@@ -7782,7 +7804,9 @@ nfa_regconcat()
 nfa_regbranch()
 {
     if (nfa_regconcat() == FAIL)
-	return FAIL;
+    {
+        SYNTAX_ERROR();
+    }
     if (peekchr() == Magic('&'))
 	/* not supported yet */
 	return FAIL;
@@ -7812,28 +7836,36 @@ nfa_reg(paren)
     if (paren == REG_PAREN)
     {
 	if (regnpar >= NSUBEXP) /* Too many `(' */
-	    return FAIL;
+        {
+            SYNTAX_ERROR();
+        }
 	parno = regnpar++;
     }
 
     if (nfa_regbranch() == FAIL)
-	return FAIL;
+    {
+        SYNTAX_ERROR();
+    }
 
     while (peekchr() == Magic('|'))
     {
 	skipchr();
 	if (nfa_regbranch() == FAIL)
-	    return FAIL;
+        {
+            SYNTAX_ERROR();
+        }
 	EMIT(NFA_OR);
     }
 
     /* Check for proper termination. */
     if (paren != REG_NOPAREN && getchr() != Magic(')'))
     {
-	return FAIL;
+        SYNTAX_ERROR();
     }
     else if (paren == REG_NOPAREN && peekchr() != NUL)
-	return FAIL;
+    {
+        SYNTAX_ERROR();
+    }
 
     /*
      * Here we set the flag allowing back references to this set of
@@ -7890,7 +7922,7 @@ typedef struct
 } regsub_T;
 
 #ifdef DEBUG
-static void nfa_regdump __ARGS((char_u *expr, int retval))
+static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
 {
     FILE *f;
     if (f=fopen("regexp.log","a"))
@@ -7910,6 +7942,22 @@ static void nfa_regdump __ARGS((char_u *expr, int retval))
 	fclose(f);
     }
 }
+
+static void nfa_dump(nfa_regprog_T *prog)
+{
+    FILE *f;
+    if (f=fopen("regexp.log","a"))
+    {
+        if (!prog->start)
+            fprintf(f, ">>> NFA could not be constructed !\n");
+        else
+        {
+            
+        }
+        
+	fclose(f);
+    }
+}
 #endif
 
 /*
@@ -7921,17 +7969,12 @@ re2post(expr, re_flags)
     char_u	*expr;
     int		re_flags;
 {
-    if (nfa_reg(REG_NOPAREN) == FAIL)
-    {
+    int code = nfa_reg(REG_NOPAREN);
 #ifdef DEBUG
-        nfa_regdump(expr, FALSE);        /* dump re when failed to compile */
+        nfa_postfix_dump(expr, FALSE);        /* dump re */
 #endif
+    if (code == FAIL)
 	return NULL;
-    }
-
-#ifdef DEBUG
-        nfa_regdump(expr, TRUE);        /* also dump when successful :-) */
-#endif
     EMIT(NFA_MOPEN);
     return post_start;
 }
@@ -8163,8 +8206,7 @@ post2nfa(postfix)
             break;
 
 	case NFA_MOPEN + 0:	/* Submatch */
-        /* {-m,n} is not supported yet */
-        return FAIL;
+
 	case NFA_MOPEN + 1:
 	case NFA_MOPEN + 2:
 	case NFA_MOPEN + 3:
@@ -8739,6 +8781,9 @@ nfa_regcomp(expr, re_flags)
     brace_index = 0;
 
     prog->start = post2nfa(re2post(expr, re_flags));
+#ifdef DEBUG
+    nfa_dump(prog);
+#endif
     if (prog->start == NULL)
 	goto fail;
 
@@ -8886,8 +8931,9 @@ vim_regcomp(expr, re_flags)
 {
     // First try the NFA engine
     regprog_T   *prog = NULL;
+    syntax_error = FALSE;
     prog = nfa_regengine.regcomp(expr, re_flags);
-    // If failed or multi-byte characters (not fully supported), then revert to old engine
+    // If regexp has contains not supported features, then revert to old engine
     if (prog == NULL)
     {
 #ifdef DEBUG
@@ -8899,8 +8945,9 @@ vim_regcomp(expr, re_flags)
 	}
 //        EMSG("ERROR !! NFA engine does not suport this regexp ! Reverting to old engine ... ");
 #endif
-	// use old engine
-        prog = bt_regengine.regcomp(expr, re_flags);
+        // Syntax errors are already handled by NFA
+        if (!syntax_error)
+            prog = bt_regengine.regcomp(expr, re_flags);
     }
     return prog;
 }

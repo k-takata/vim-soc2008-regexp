@@ -101,10 +101,10 @@
 #define PTYRANGE1 "0123456789abcdef"
 
 /* Define mode for pty */
-#define PTYMODE 0620
+/* #undef PTYMODE */
 
 /* Define group for pty */
-#define PTYGROUP 5
+/* #undef PTYGROUP */
 
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void
@@ -278,10 +278,10 @@
 /* #undef FEAT_NORMAL */
 
 /* Define if you want big features. */
-#define FEAT_BIG 1
+/* #undef FEAT_BIG */
 
 /* Define if you want huge features. */
-/* #undef FEAT_HUGE */
+#define FEAT_HUGE 1
 
 /* Define if you want to include the MzScheme interpreter. */
 /* #undef FEAT_MZSCHEME */

@@ -66,7 +66,7 @@ typedef struct
 typedef struct nfa_state nfa_state_T;
 struct nfa_state
 {
-    int			c;              /* The most important field: character/node ID */
+    int			c;              /* The most important field: the character to be matched */
     nfa_state_T		*out;
     nfa_state_T		*out1;
     int			id;
