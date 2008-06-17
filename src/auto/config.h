@@ -101,10 +101,10 @@
 #define PTYRANGE1 "0123456789abcdef"
 
 /* Define mode for pty */
-/* #undef PTYMODE */
+#define PTYMODE 0620
 
 /* Define group for pty */
-/* #undef PTYGROUP */
+#define PTYGROUP 5
 
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void

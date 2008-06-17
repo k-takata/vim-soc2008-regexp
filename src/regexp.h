@@ -73,6 +73,7 @@ struct nfa_state
     int			lastlist;
     int			visits;
     Thread		*lastthread;
+    int                 *clist;         /* Vector of counters, indexed by state->id */
 };
 
 /*
