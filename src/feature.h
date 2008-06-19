@@ -400,7 +400,7 @@
 		|| defined(WIN3264))
 # define FEAT_RELTIME
 #endif
-
+#undef FEAT_RELTIME
 /*
  * +textobjects		Text objects: "vaw", "das", etc.
  */
