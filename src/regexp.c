@@ -7370,6 +7370,9 @@ static regengine_T bt_regengine =
 /******************** Below are NFA regexp *********************/
 
 
+#define	    NFA_BRACES_MAXLIMIT	    10	    /* Upper limit allowed for {m,n} repetitions handled by NFA */
+#define	    NFA_POSTFIX_MULTIPLIER    (NFA_BRACES_MAXLIMIT+2)*2	    /* For allocating space for the postfix representation */
+
 #ifdef DEBUG
 static void nfa_postfix_dump __ARGS((char_u *expr, int retval));
 static void nfa_dump __ARGS((nfa_regprog_T *prog));
@@ -7426,7 +7429,7 @@ nfa_regcomp_start(expr, re_flags)
     nstate	= 0;
     istate	= 0;
     nfa_gate_offset = 0;
-    nstate_max	= (STRLEN(expr) + 1) * 22; /* A reasonable estimation. */
+    nstate_max	= (STRLEN(expr) + 1) * NFA_POSTFIX_MULTIPLIER; /* A reasonable estimation. */
 
     postfix_size = sizeof(*post_start) * nstate_max;	/* Size for postfix representation of expr */
     post_start = (int *)lalloc(postfix_size, TRUE);
@@ -7740,7 +7743,7 @@ nfa_regpiece()
 		syntax_error = TRUE;
 		return FAIL;
 	    }
-	    if (maxval >= 10)
+	    if (maxval >= NFA_BRACES_MAXLIMIT)
 	    {
 		/* This would yield a huge automaton and use too much memory.
 		 * Revert to old engine */
