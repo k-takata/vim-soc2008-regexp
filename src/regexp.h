@@ -59,14 +59,6 @@ typedef struct
     char_u		program[1];	/* actually longer.. */
 } bt_regprog_T;
 
-/* Linked list. Each node in the list contains an int vector, counters for each node in the NFA */
-struct clist_t
-{
-    int                 *counters;         /* Vector of counters */
-    struct clist_t      *next;
-};
-typedef struct clist_t clist_T;
-
 /*
  * Stucture representating a NFA state.
  * A NFA state may have no outgoing edge, when it is a NFA_MATCH state.
@@ -81,7 +73,6 @@ struct nfa_state
     int			lastlist;
     int			visits;
     Thread		*lastthread;
-    clist_T             *clist;
 };
 
 /*
