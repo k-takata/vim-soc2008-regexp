@@ -7386,6 +7386,7 @@ FILE	    *f;
  * should have been handled by the NFA engine. Syntax errors are handled by NFA engine. */
 static int syntax_error = FALSE;
 static int nfa_calc_size = FALSE;
+static int nfa_paren_offset = 0;
 
 static int *post_start;  /* holds the postfix form of r.e. */
 static int *post_end;
@@ -7431,6 +7432,7 @@ nfa_regcomp_start(expr, re_flags)
     nstate	= 0;
     istate	= 0;
     nfa_gate_offset = 0;
+    nfa_paren_offset = 0;
     nstate_max	= (STRLEN(expr) + 1) * NFA_POSTFIX_MULTIPLIER; /* A reasonable estimation. */
 
     postfix_size = sizeof(*post_start) * nstate_max;	/* Size for postfix representation of expr */
@@ -7698,13 +7700,15 @@ nfa_regpiece()
     int         greedy = TRUE;      /* Braces are prefixed with '-' ? */
     char_u	*old_regparse, *new_regparse;
 	char	c2;
-    int		*old_post_ptr;
+    int		*old_post_ptr, *my_post_start;
+    int		old_regnpar;
 
     nfa_just_found_braces = FALSE;
     old_regparse = regparse;	    /* store current pos, in case \{m,n} is next 
 				    and we have to repeat this atom */
-    old_post_ptr = post_ptr;	    /* store current pos in the postfix form, for \{m,n} involving 0s */
-    
+    old_regnpar = regnpar;	    /* store current number of open paranthesis */
+    my_post_start = post_ptr;	    /* store current pos in the postfix form, for \{m,n} involving 0s */
+   
     ret = nfa_regatom();
     if (ret == FAIL)
 	return FAIL;	    /* cascaded error */
@@ -7735,8 +7739,8 @@ nfa_regpiece()
 
 	case Magic('{'):
 	    /* a{2,5} will expand to 'aaa?a?a?'
-	     * a{0,3} will expand to 'a?a?a?'
 	     * a{-1,3} will expand to 'aa??a??', where ?? is the nongreedy version of '?' 
+	     * \v(ab){2,3} will expand to 'abab(ab)?'
 	     */
 
 	    greedy = TRUE;
@@ -7759,52 +7763,32 @@ nfa_regpiece()
 		return FAIL;
 	    }
 
-#ifdef DEBUG
-    FILE *f = fopen("regmatch.log", "a");
-    if (f)
-    {	
-	fprintf(f, "Read braces with limits %ld, %ld ... \n", minval, maxval);
-	fclose(f);
-    }
-#endif
 	    /* Special case: x{0} or x{-0} */
 	    if (maxval == 0)
 	    {
-		post_ptr = old_post_ptr;	/* Ignore result of previous call to nfa_regatom() */
+		post_ptr = my_post_start;	/* Ignore result of previous call to nfa_regatom() */
 		EMIT(NFA_SKIP_CHAR);		/* Match has 0-length and works everywhere */
 		return OK;
 	    }
 
-//	    post_ptr = old_post_ptr;	/* Ignore previous call to nfa_regatom() */
+	    post_ptr = my_post_start;	/* Ignore previous call to nfa_regatom() */
 	    new_regparse = regparse;	/* Save pos after the repeated atom and the \{} */
-	    if (post_ptr != post_start && (*(post_ptr-1)>0) )
-	    {
-		EMIT(NFA_CONCAT);	/* If not first atom, concat it with previous atoms */
-		printf("\tcode: %d\n", *(post_ptr-1));
-	    }
-
-	    if (minval > 0)		    /* have to emit mandatory atoms too */
-	    {
-		new_regparse = regparse;
-		for (i = 1; i<minval; i++)
-		{
-		    regparse = old_regparse;
-		    if (nfa_regatom() == FAIL)
-			return FAIL;
-		    if (post_ptr != post_start)
-			EMIT(NFA_CONCAT);
-		}
-	    }
-
+	    
+	    new_regparse = regparse;
 	    int quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);    /* to emit a \? */
-	    for (i = minval; i<maxval; i++)
+	    for (i = 0; i < maxval; i++)
 	    {
-		regparse = old_regparse;	/* Go to beginning of the repeated atom */
+		regparse = old_regparse;	/* Goto beginning of the repeated atom */
+		regnpar = old_regnpar;		/* Restore count of paranthesis */
+		old_post_ptr = post_ptr;
 		if (nfa_regatom() == FAIL)
 		    return FAIL;
-		EMIT(quest);
-		EMIT(NFA_CONCAT);
+		if (i+1 > minval)	    /* after "minval" times, atoms are optional */
+		    EMIT(quest);
+		if (old_post_ptr != my_post_start)
+		    EMIT(NFA_CONCAT);
 	    }
+
 	    regparse = new_regparse;	/* Go to just after the repeated atom and the \{} */
 	    
 	    break;
@@ -7961,7 +7945,7 @@ nfa_reg(paren)
 	    syntax_error = TRUE;
 	    return FAIL;
 	}
-	parno = regnpar++;
+	parno = regnpar++ - nfa_paren_offset;
     }
 
     if (nfa_regbranch() == FAIL)
@@ -8050,6 +8034,8 @@ static void nfa_set_code(int c)
 	case NFA_EOL: STRCPY(code, "NFA_EOL "); break;
 	case NFA_BOL: STRCPY(code, "NFA_BOL "); break;
 	case NFA_ANY: STRCPY(code, "NFA_ANY "); break;
+	case NFA_STAR: STRCPY(code, "NFA_STAR "); break;
+	case NFA_PLUS: STRCPY(code, "NFA_PLUS "); break;
 	case NFA_SKIP_CHAR: STRCPY(code, "NFA_SKIP_CHAR"); break;
 	case NFA_OR: STRCPY(code, "NFA_OR"); break;
 	case NFA_QUEST:	STRCPY(code, "NFA_QUEST"); break;
@@ -8434,7 +8420,10 @@ post2nfa(postfix)
 
     e = POP();
     if (stackp != stack)
+    {
+	EMSG("NFA regexp: (While converting from postfix to NFA), too many states left on stack ");
 	return NULL;
+    }
 
     if (istate >= nstate)
 	return NULL;
