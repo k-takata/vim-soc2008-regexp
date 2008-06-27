@@ -246,6 +246,7 @@ NFA_JOIN_BRANCHES,
     NFA_STAR,
     NFA_PLUS,
     NFA_QUEST,
+    NFA_QUEST_NONGREEDY,
 
     NFA_BOL,
     NFA_EOL,
@@ -1174,7 +1175,7 @@ bt_regcomp(expr, re_flags)
 	}
     }
 #ifdef DEBUG
-//    regdump(expr, r);
+    regdump(expr, r);
 #endif
     r->engine = &bt_regengine;
     return (regprog_T *)r;
@@ -6101,6 +6102,7 @@ regdump(pattern, r)
     char_u  *next;
     char_u  *end = NULL;
 
+    return;
     printf("\r\nregcomp(%s):\r\n", pattern);
 
     s = r->program + 1;
@@ -7609,6 +7611,7 @@ nfa_regatom()
 	case Magic('|'):
 	case Magic('&'):
 	case Magic(')'):
+	    EMSG("NFA regexp: Misplaced closing ')' ");
 	    syntax_error = TRUE;
 	    return FAIL;
 
@@ -7618,6 +7621,7 @@ nfa_regatom()
 	case Magic('@'):
 	case Magic('*'):
 	case Magic('{'):
+	    EMSG("NFA regexp: Misplaced =?+@*{");
 	    syntax_error = TRUE;
 	    return FAIL;		/* these should follow an atom, not form an atom */
 
@@ -7691,7 +7695,7 @@ nfa_regpiece()
     int		op;
     int		ret;
     long 	minval, maxval;
-    int         anti_greedy=FALSE;      /* Braces are prefixed with '-' ? */
+    int         greedy = TRUE;      /* Braces are prefixed with '-' ? */
     char_u	*old_regparse, *new_regparse;
 	char	c2;
     int		*old_post_ptr;
@@ -7730,20 +7734,25 @@ nfa_regpiece()
 	    break;
 
 	case Magic('{'):
-			c2 = peekchr();
+	    /* a{2,5} will expand to 'aaa?a?a?'
+	     * a{0,3} will expand to 'a?a?a?'
+	     * a{-1,3} will expand to 'aa??a??', where ?? is the nongreedy version of '?' 
+	     */
+
+	    greedy = TRUE;
+	    c2 = peekchr();
             if (c2 == '-')       /* greedy or anti-greedy matching? */
             {
                 skipchr();
-                anti_greedy = TRUE;
-                /* {-m,n} is not supported yet */
-                return FAIL;
+                greedy = FALSE;
             }
 	    if (!read_limits(&minval, &maxval))
 	    {
+		EMSG("NFA regexp: Error reading repetition limits");
 		syntax_error = TRUE;
 		return FAIL;
 	    }
-	    if (maxval >= NFA_BRACES_MAXLIMIT)
+	    if (maxval > NFA_BRACES_MAXLIMIT)
 	    {
 		/* This would yield a huge automaton and use too much memory.
 		 * Revert to old engine */
@@ -7758,47 +7767,57 @@ nfa_regpiece()
 	fclose(f);
     }
 #endif
+	    /* Special case: x{0} or x{-0} */
 	    if (maxval == 0)
 	    {
 		post_ptr = old_post_ptr;	/* Ignore result of previous call to nfa_regatom() */
-		EMIT(NFA_SKIP_CHAR);
+		EMIT(NFA_SKIP_CHAR);		/* Match has 0-length and works everywhere */
 		return OK;
 	    }
-    
-	    new_regparse = regparse;
-	    for (i = 1; i < minval; i++)
+
+//	    post_ptr = old_post_ptr;	/* Ignore previous call to nfa_regatom() */
+	    new_regparse = regparse;	/* Save pos after the repeated atom and the \{} */
+	    if (post_ptr != post_start && (*(post_ptr-1)>0) )
 	    {
-		regparse = old_regparse;
-		if (nfa_regatom()==FAIL)
-		    return FAIL;
-		EMIT(NFA_CONCAT);
+		EMIT(NFA_CONCAT);	/* If not first atom, concat it with previous atoms */
+		printf("\tcode: %d\n", *(post_ptr-1));
 	    }
-	    i = 1;
-	    if (minval >= 1)
-		i = minval;
-	    for (; i < maxval; i++)
+
+	    if (minval > 0)		    /* have to emit mandatory atoms too */
 	    {
-		regparse = old_regparse;
+		new_regparse = regparse;
+		for (i = 1; i<minval; i++)
+		{
+		    regparse = old_regparse;
+		    if (nfa_regatom() == FAIL)
+			return FAIL;
+		    if (post_ptr != post_start)
+			EMIT(NFA_CONCAT);
+		}
+	    }
+
+	    int quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);    /* to emit a \? */
+	    for (i = minval; i<maxval; i++)
+	    {
+		regparse = old_regparse;	/* Go to beginning of the repeated atom */
 		if (nfa_regatom() == FAIL)
 		    return FAIL;
-		EMIT(NFA_QUEST);
+		EMIT(quest);
 		EMIT(NFA_CONCAT);
 	    }
-	    regparse = new_regparse;
-	    if (minval == 0)	    /* border case */
-	    {
-		/* Allow a 0-length (epsilon-transition) exit */
-		EMIT(NFA_SKIP_CHAR);
-		EMIT(NFA_OR);
-	    }
-	    return OK;
+	    regparse = new_regparse;	/* Go to just after the repeated atom and the \{} */
+	    
+	    break;
+
 
 	default:
 	    break;
-    }
+    }	/* end switch */
+
     if (re_multi_type(peekchr()) != NOT_MULTI)
     {
 	/* Can't have a multi follow a multi. */
+	EMSG("NFA regexp: Can't have a multi follow a multi !");
 	syntax_error = TRUE;
 	return FAIL;
     }
@@ -7875,6 +7894,7 @@ nfa_regconcat()
 		{   
 		    if (nfa_just_found_braces)
 		    {
+			EMSG("NFA regexp:  Can't begina regexp with repetition braces ");
 			syntax_error = TRUE;
 			return FAIL;
 		    }
@@ -7937,6 +7957,7 @@ nfa_reg(paren)
     {
 	if (regnpar >= NSUBEXP) /* Too many `(' */
 	{
+	    EMSG("NFA regexp: Too many '('");
 	    syntax_error = TRUE;
 	    return FAIL;
 	}
@@ -7957,11 +7978,13 @@ nfa_reg(paren)
     /* Check for proper termination. */
     if (paren != REG_NOPAREN && getchr() != Magic(')'))
     {
+	EMSG("NFA regexp: Group is not properly terminated ");
 	syntax_error = TRUE;
 	return FAIL;
     }
     else if (paren == REG_NOPAREN && peekchr() != NUL)
     {
+	EMSG("NFA regexp: proper termination error ");
 	syntax_error = TRUE;
 	return FAIL;
     }
@@ -7998,17 +8021,42 @@ static void nfa_set_code(int c)
         case NFA_MATCH: STRCPY(code, "NFA_MATCH "); break;
         case NFA_SPLIT: STRCPY(code, "NFA_SPLIT "); break;
 	case NFA_CONCAT: STRCPY(code, "NFA_CONCAT "); break;
-	case NFA_MOPEN: STRCPY(code, "NFA_MOPEN "); break;
-	case NFA_MCLOSE: STRCPY(code, "NFA_MCLOSE "); break;
+	case NFA_MOPEN + 0: 
+	case NFA_MOPEN + 1: 
+	case NFA_MOPEN + 2: 
+	case NFA_MOPEN + 3: 
+	case NFA_MOPEN + 4: 
+	case NFA_MOPEN + 5: 
+	case NFA_MOPEN + 6: 
+	case NFA_MOPEN + 7: 
+	case NFA_MOPEN + 8: 
+	case NFA_MOPEN + 9: 
+	    STRCPY(code, "NFA_MOPEN(x)");
+	    code[10] = c - NFA_MOPEN + '0';
+	    break;
+	case NFA_MCLOSE + 0: 
+	case NFA_MCLOSE + 1: 
+	case NFA_MCLOSE + 2: 
+	case NFA_MCLOSE + 3: 
+	case NFA_MCLOSE + 4: 
+	case NFA_MCLOSE + 5: 
+	case NFA_MCLOSE + 6: 
+	case NFA_MCLOSE + 7: 
+	case NFA_MCLOSE + 8: 
+	case NFA_MCLOSE + 9: 
+	    STRCPY(code, "NFA_MCLOSE(x)");
+	    code[11] = c - NFA_MCLOSE + '0';
+	    break;
 	case NFA_EOL: STRCPY(code, "NFA_EOL "); break;
 	case NFA_BOL: STRCPY(code, "NFA_BOL "); break;
 	case NFA_ANY: STRCPY(code, "NFA_ANY "); break;
 	case NFA_SKIP_CHAR: STRCPY(code, "NFA_SKIP_CHAR"); break;
 	case NFA_OR: STRCPY(code, "NFA_OR"); break;
+	case NFA_QUEST:	STRCPY(code, "NFA_QUEST"); break;
+	case NFA_QUEST_NONGREEDY: STRCPY(code, "NFA_QUEST_NON_GREEDY"); break;
         default:    
-            STRCPY(code, "CHAR: ");
-            code[6] = c;
-            code[7] = '\0';
+            STRCPY(code, "CHAR(x)");
+            code[5] = c;
     }
     
 }
@@ -8039,25 +8087,23 @@ static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
     }
 }
 
-static void nfa_print_state(FILE *debugf, nfa_state_T *state, int print, int ident)
+static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
 {
     if (state == NULL)
-        return;
+	return;
+
+    int i;
+    for (i=0;i<ident; i++)
+	fprintf(debugf,"%c", ' ');
+
+    nfa_set_code(state->c);
+    fprintf(debugf, "%s (%d) (id=%d)\n", code, state->c, abs(state->id));
     if (state->id < 0)
 	return;
     state->id *= -1;
-    if (print)
-    {
-        int i=0;
-        for (;i<ident; i++)
-	    fprintf(debugf,"%c", ' ');
-	nfa_set_code(state->c);
-	fprintf(debugf, "%s (%d) (id=%d)\n", code, state->c, state->id * -1);
-    }
+    nfa_print_state(debugf, state->out, ident+4);
+    nfa_print_state(debugf, state->out1, ident+4);
 
-    nfa_print_state(debugf, state->out, print, ident+4);
-//     fprintf(debugf,"....\n");
-    nfa_print_state(debugf, state->out1, print, ident+4);
 }
 
 static void nfa_dump(nfa_regprog_T *prog)
@@ -8065,7 +8111,7 @@ static void nfa_dump(nfa_regprog_T *prog)
     debugf=fopen("LOG.log","a");
     if (debugf)
     {
-	nfa_print_state(debugf, prog->start, TRUE, 0);
+	nfa_print_state(debugf, prog->start, 0);
 	fclose(debugf);
     }
 }
@@ -8289,7 +8335,7 @@ post2nfa(postfix)
 	    PUSH(frag(s, list1(&s->out1)));
 	    break;
 
-	case NFA_QUEST:		/* Zero or one */
+	case NFA_QUEST:		/* One or zero, in this order => greedy match */
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate ++;
@@ -8297,6 +8343,19 @@ post2nfa(postfix)
 	    }
 	    e = POP();
 	    s = new_state(NFA_SPLIT, e.start, NULL);
+	    if (s == NULL)
+	        return NULL;
+	    PUSH(frag(s, append(e.out, list1(&s->out1))));
+	    break;
+
+	case NFA_QUEST_NONGREEDY:		/* Zero or one, in this order => non-greedy match */
+	    if (nfa_calc_size == TRUE)
+	    {
+		nstate ++;
+		break;
+	    }
+	    e = POP();
+	    s = new_state(NFA_SPLIT, NULL, e.start);
 	    if (s == NULL)
 	        return NULL;
 	    PUSH(frag(s, append(e.out, list1(&s->out1))));
@@ -8580,7 +8639,7 @@ nfa_regmatch(start, submatch)
 	f = fopen("regmatch.log","a");
 	fprintf(f, "\n\n\n\n\n\n=======================================================\n");
 	fprintf(f, "=======================================================\n\n\n\n\n\n\n");
-	nfa_print_state(f, start, TRUE, 0);
+	nfa_print_state(f, start, 0);
 #endif
 
     thislist = &list[0];
@@ -8625,7 +8684,7 @@ again:
 	    t = &thislist->t[i];
 #ifdef DEBUG
     nfa_set_code(t->state->c);
-    fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id), code, (int)c);
+    fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id), code, (int)t->state->c);
 #endif
 	    switch (t->state->c)
 	    {
@@ -9121,7 +9180,10 @@ vim_regcomp(expr, re_flags)
 	f=fopen("debug.log","a");
         if (f)
 	{
-		fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
+		if (!syntax_error)
+		    fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
+		else
+		    fprintf(f,"Syntax error in \"%s\"\n", expr);
 		fclose(f);
 	}
 //        EMSG("ERROR !! NFA engine does not suport this regexp ! Reverting to old engine ... ");
