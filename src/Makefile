@@ -2497,8 +2497,8 @@ objects/popupmnu.o: popupmnu.c
 objects/quickfix.o: quickfix.c
 	$(CCC) -o $@ quickfix.c
 
-objects/regexp.o: regexp.c
-	$(CCC) -o $@ regexp.c
+objects/regexp.o: regexp.c nfa_regexp.c
+	$(CCC) -o $@ regexp.c 
 
 objects/screen.o: screen.c
 	$(CCC) -o $@ screen.c
@@ -2764,7 +2764,7 @@ objects/quickfix.o: quickfix.c vim.h auto/config.h feature.h os_unix.h \
   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
   globals.h farsi.h arabic.h
-objects/regexp.o: regexp.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+objects/regexp.o: regexp.c nfa_regexp.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
   arabic.h
