@@ -1,0 +1,18 @@
+STARTTEST
+
+/\na\nb
+:?start?,$w! test.out
+:qa!
+ENDTEST
+
+start
+a
+b
+c
+d
+e
+f
+g
+
+end
+
