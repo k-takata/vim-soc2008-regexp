@@ -25,45 +25,45 @@ STARTTEST
 :call add(tl, ['c*', 'abdef', ''])
 :call add(tl, ['bc\+', 'abccccdef', 'bcccc'])
 :call add(tl, ['bc\+', 'abdef']) "no match
-:"
+:" 11
 :"operator \|
 :call add(tl, ['a\|ab', 'cabd', 'a']) "alternation is ordered
-:"
+:" 12
 :call add(tl, ['c\?', 'ccb', 'c'])
 :call add(tl, ['bc\?', 'abd', 'b'])
 :call add(tl, ['bc\?', 'abccd', 'bc'])
-:"
+:" 15
 :call add(tl, ['\va{1}', 'ab', 'a'])
-:"
+:" 16
 :call add(tl, ['\va{2}', 'aa', 'aa'])
 :call add(tl, ['\va{2}', 'caad', 'aa'])
 :call add(tl, ['\va{2}', 'aba'])
 :call add(tl, ['\va{2}', 'ab'])
 :call add(tl, ['\va{2}', 'abaa', 'aa'])
 :call add(tl, ['\va{2}', 'aaa', 'aa'])
-:"
+:" 22
 :call add(tl, ['\vb{1}', 'abca', 'b'])
 :call add(tl, ['\vba{2}', 'abaa', 'baa'])
 :call add(tl, ['\vba{3}', 'aabaac'])
-:"
+:" 25
 :call add(tl, ['\v(ab){1}', 'ab', 'ab', 'ab'])
 :call add(tl, ['\v(ab){1}', 'dabc', 'ab', 'ab'])
 :call add(tl, ['\v(ab){1}', 'acb'])
-:"
+:" 28
 :call add(tl, ['\v(ab){0,2}', 'acb', "", ""])
 :call add(tl, ['\v(ab){0,2}', 'ab', 'ab', 'ab'])
 :call add(tl, ['\v(ab){1,2}', 'ab', 'ab', 'ab'])
 :call add(tl, ['\v(ab){1,2}', 'ababc', 'abab', 'ab'])
 :call add(tl, ['\v(ab){2,4}', 'ababcab', 'abab', 'ab'])
 :call add(tl, ['\v(ab){2,4}', 'abcababa', 'abab', 'ab'])
-:"
+:" 34
 :call add(tl, ['\v(ab){2}', 'abab', 'abab', 'ab'])
 :call add(tl, ['\v(ab){2}', 'cdababe', 'abab', 'ab'])
 :call add(tl, ['\v(ab){2}', 'abac'])
 :call add(tl, ['\v(ab){2}', 'abacabab', 'abab', 'ab'])
 :call add(tl, ['\v((ab){2}){2}', 'abababab', 'abababab', 'abab', 'ab'])
 :call add(tl, ['\v((ab){2}){2}', 'abacabababab', 'abababab', 'abab', 'ab'])
-:"
+:" 40
 :call add(tl, ['\v(a{1}){1}', 'a', 'a', 'a'])
 :call add(tl, ['\v(a{2}){1}', 'aa', 'aa', 'aa'])
 :call add(tl, ['\v(a{2}){1}', 'aaac', 'aa', 'aa'])
@@ -77,10 +77,10 @@ STARTTEST
 :call add(tl, ['\v(a{1}){1}', 'a', 'a', 'a'])
 :call add(tl, ['\v(a{2}){2}', 'aaaa', 'aaaa', 'aa'])
 :call add(tl, ['\v(a{2}){2}', 'aaabaaaa', 'aaaa', 'aa'])
-:"
+:" 53
 :call add(tl, ['\v(a+){2}', 'dadaac', 'aa', 'a'])
 :call add(tl, ['\v(a{3}){2}', 'aaaaaaa', 'aaaaaa', 'aaa'])
-:"
+:" 55
 :call add(tl, ['\v(a{1,2}){2}', 'daaac', 'aaa', 'a'])
 :call add(tl, ['\v(a{1,3}){2}', 'daaaac', 'aaaa', 'a'])
 :call add(tl, ['\v(a{1,3}){2}', 'daaaaac', 'aaaaa', 'aa'])
@@ -95,7 +95,7 @@ STARTTEST
 :call add(tl, ['\v(a|b|c){2}', 'abcb', 'ab', 'b'])
 :call add(tl, ['\v(abc){2}', 'abcabd', ])
 :call add(tl, ['\v(abc){2}', 'abdabcabc','abcabc', 'abc'])
-:"
+:" 69
 :call add(tl, ['a*', 'cc', ''])
 :call add(tl, ['\v(a*)+', 'cc', ''])
 :call add(tl, ['\v((ab)+)+', 'ab', 'ab', 'ab', 'ab'])

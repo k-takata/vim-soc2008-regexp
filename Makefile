@@ -2,7 +2,9 @@
 # Makefile to run all tests for Vim
 #
 
-VIMPROG = ../vim-both/src/vim
+VIMPROG = ../vim-new/src/vim
+#VIMPROG = ../vim-old/src/vim
+#VIMPROG = ../vim-both/src/vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
