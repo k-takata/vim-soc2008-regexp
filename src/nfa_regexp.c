@@ -1,4 +1,4 @@
-
+/* vi:set ts=8 sts=4 sw=4:  */
 /******************** Below are NFA regexp *********************/
 /* File nfa_regexp.c is included automa[gt]ically in regexp.c, at the end. */
 
@@ -125,49 +125,49 @@ nfa_regatom()
         return FAIL;	    /* unsupported for now */
     switch (c)
     {
-		case Magic('^'):
-			EMIT(NFA_BOL);
-			break;
+	  case Magic('^'):
+		  EMIT(NFA_BOL);
+		  break;
 
-		case Magic('$'):
-			EMIT(NFA_EOL);
+	  case Magic('$'):
+		  EMIT(NFA_EOL);
 #if defined(FEAT_SYN_HL) || defined(PROTO)
-			had_eol = TRUE;
+		  had_eol = TRUE;
 #endif
-			break;
+		  break;
 
-		case Magic('<'):
-			EMIT(NFA_BOW);
-			break;
+	  case Magic('<'):
+		  EMIT(NFA_BOW);
+		  break;
 
-		case Magic('>'):
-			EMIT(NFA_EOW);
-			break;
+	  case Magic('>'):
+		  EMIT(NFA_EOW);
+		  break;
 
-		case Magic('_'):
-			c = no_Magic(getchr());
-			if (c == '^')	/* "\_^" is start-of-line */
-			{
-			EMIT(NFA_BOL);
-			break;
-			}
-			if (c == '$')	/* "\_$" is end-of-line */
-			{
-			EMIT(NFA_EOL);
+	  case Magic('_'):
+		  c = no_Magic(getchr());
+		  if (c == '^')	/* "\_^" is start-of-line */
+		  {
+		  EMIT(NFA_BOL);
+		  break;
+		  }
+		  if (c == '$')	/* "\_$" is end-of-line */
+		  {
+		  EMIT(NFA_EOL);
 #if defined(FEAT_SYN_HL) || defined(PROTO)
-			had_eol = TRUE;
+		  had_eol = TRUE;
 #endif
-			break;
-			}
+		  break;
+		  }
 
-			return FAIL;	/* TODO(RE) Why fail here? */
+		  return FAIL;	/* TODO(RE) Why fail here? */
 
-			extra = ADD_NL;
+		  extra = ADD_NL;
 
-			/* "\_[" is character range plus newline */
-				if (c == '[')
-			/* not supported yet */
-			return FAIL;
+		  /* "\_[" is character range plus newline */
+			  if (c == '[')
+		  /* not supported yet */
+		  return FAIL;
 
 		/* "\_x" is character class plus newline */
 		/*FALLTHROUGH*/
@@ -309,7 +309,7 @@ nfa_regatom()
 			else 
 			if (reg_strict)
 			{
-				EMSG_M_RET_NULL(_("E769: Missing ] after %s["), reg_magic > MAGIC_OFF);
+				EMSG(_("E769: Missing ] after ["));
 				syntax_error = TRUE;
 				return FAIL;
 			}	
@@ -364,7 +364,7 @@ nfa_regpiece()
     long 	minval, maxval;
     int         greedy = TRUE;      /* Braces are prefixed with '-' ? */
     char_u	*old_regparse, *new_regparse;
-	char	c2;
+    int		c2;
     int		*old_post_ptr, *my_post_start;
     int		old_regnpar;
 
@@ -411,11 +411,11 @@ nfa_regpiece()
 
 	    greedy = TRUE;
 	    c2 = peekchr();
-            if (c2 == '-')
-            {
-                skipchr();
-                greedy = FALSE;
-            }
+	    if (c2 == '-' || c2 == Magic('-'))
+	    {
+		skipchr();
+		greedy = FALSE;
+	    }
 	    if (!read_limits(&minval, &maxval))
 	    {
 		EMSG("NFA regexp: Error reading repetition limits");
@@ -445,6 +445,7 @@ nfa_regpiece()
 	    for (i = 0; i < maxval; i++)
 	    {
 		regparse = old_regparse;	/* Goto beginning of the repeated atom */
+		curchr = -1;
 		regnpar = old_regnpar;		/* Restore count of paranthesis */
 		old_post_ptr = post_ptr;
 		if (nfa_regatom() == FAIL)
@@ -456,6 +457,7 @@ nfa_regpiece()
 	    }
 
 	    regparse = new_regparse;	/* Go to just after the repeated atom and the \{} */
+	    curchr = -1;
 	    
 	    break;
 
@@ -752,10 +754,12 @@ static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
     fprintf(debugf, "%s (%d) (id=%d)\n", code, state->c, abs(state->id));
     if (state->id < 0)
 	return;
-    state->id *= -1;
+    
+    state->id = abs(state->id) * -1;
     nfa_print_state(debugf, state->out, ident+4);
+    state->id = abs(state->id) * -1;
     nfa_print_state(debugf, state->out1, ident+4);
-
+    state->id = abs(state->id);
 }
 
 static void nfa_dump(nfa_regprog_T *prog)
@@ -1010,7 +1014,7 @@ post2nfa(postfix)
 	    s = new_state(NFA_SPLIT, NULL, e.start);
 	    if (s == NULL)
 	        return NULL;
-	    PUSH(frag(s, append(e.out, list1(&s->out1))));
+	    PUSH(frag(s, append(e.out, list1(&s->out))));
 	    break;
 
 	case NFA_PLUS:		/* One or more */
@@ -1136,21 +1140,30 @@ addstate(l, state, m, off, lid, match)
     if (l == NULL || state == NULL) /* never happen */
 	return;
 
-    if (state->lastlist == lid)
-    {
-	if (++state->visits > 2)
-	    return;
-    }
-    else        /* add the state to the list */
-    {
-	state->lastlist = lid;
-	state->lastthread = &l->t[l->n++];
-	state->lastthread->state = state;
-	state->lastthread->sub = *m;
+    /* Only remember states with printable chars (c>0) or beginning of groups, and codes used in nfa_regmatch() */
+    if (state->c > 0
+	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
+	|| (state->c == NFA_MATCH) || (state->c == NFA_BOW) || (state->c == NFA_EOW)
+	|| (state->c == NFA_ANY) || (state->c == NFA_BOL) || (state->c == NFA_EOL)
+	|| (state->c == NFA_NEWL)
+	)
+    {	
+	if (state->lastlist == lid)
+	{
+	    if (++state->visits > 2)
+		return;
+	}
+	else        /* add the state to the list */
+	{
+	    state->lastlist = lid;
+	    state->lastthread = &l->t[l->n++];
+	    state->lastthread->state = state;
+	    state->lastthread->sub = *m;
+	}
     }
 #ifdef DEBUG
     nfa_set_code(state->c);
-    fprintf(f, "> Adding new state (id = %d) to list %d. Character code %d\n", state->id, lid, state->c);
+    fprintf(f, "> Adding state %d to list %d. Character %s, code %d\n", state->id, lid, code, state->c);
 #endif
     switch (state->c)
     {
@@ -1183,14 +1196,14 @@ addstate(l, state, m, off, lid, match)
 	    {
 		save.startpos[subidx] = m->startpos[subidx];
 		save.endpos[subidx] = m->endpos[subidx];
-	        m->startpos[subidx].lnum = reglnum;
-	        m->startpos[subidx].col = reginput - regline + off;
+		m->startpos[subidx].lnum = reglnum;
+		m->startpos[subidx].col = reginput - regline + off;
 	    }
 	    else
 	    {
 		save.start[subidx] = m->start[subidx];
 		save.end[subidx] = m->end[subidx];
-	        m->start[subidx] = reginput + off;
+		m->start[subidx] = reginput + off;
 	    }
 
 	    addstate(l, state->out, m, off, lid, match);
@@ -1223,14 +1236,14 @@ addstate(l, state, m, off, lid, match)
 	    {
 		save.startpos[subidx] = m->startpos[subidx];
 		save.endpos[subidx] = m->endpos[subidx];
-	        m->endpos[subidx].lnum = reglnum;
-	        m->endpos[subidx].col = reginput - regline + off;
+		m->endpos[subidx].lnum = reglnum;
+		m->endpos[subidx].col = reginput - regline + off;
 	    }
 	    else
 	    {
 		save.start[subidx] = m->start[subidx];
 		save.end[subidx] = m->end[subidx];
-	        m->end[subidx] = reginput + off;
+		m->end[subidx] = reginput + off;
 	    }
 
 	    addstate(l, state->out, m, off, lid, match);
@@ -1291,10 +1304,10 @@ nfa_regmatch(start, submatch)
     listid = 1;
 
 #ifdef DEBUG
-	f = fopen("regmatch.log","a");
-	fprintf(f, "\n\n\n\n\n\n=======================================================\n");
-	fprintf(f, "=======================================================\n\n\n\n\n\n\n");
-	nfa_print_state(f, start, 0);
+    f = fopen("regmatch.log","a");
+    fprintf(f, "\n\n\n\n\n\n=======================================================\n");
+    fprintf(f, "=======================================================\n\n\n\n\n\n\n");
+    nfa_print_state(f, start, 0);
 #endif
 
     thislist = &list[0];
