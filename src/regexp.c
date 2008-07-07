@@ -273,7 +273,7 @@ NFA_JOIN_BRANCHES,
     NFA_NWHITE,		/*	Match non-whitespace char */
     NFA_DIGIT,		/*	Match digit char */
     NFA_NDIGIT,		/*	Match non-digit char */
-    NFA_HEX,			/*	Match hex char */
+    NFA_HEX,		/*	Match hex char */
     NFA_NHEX,		/*	Match non-hex char */
     NFA_OCTAL,		/*	Match octal char */
     NFA_NOCTAL,		/*	Match non-octal char */
@@ -288,7 +288,25 @@ NFA_JOIN_BRANCHES,
     NFA_UPPER,		/*	Match uppercase char */
     NFA_NUPPER,		/*	Match non-uppercase char */
     NFA_FIRST_NL = NFA_ANY + ADD_NL,
-    NFA_LAST_NL = NFA_NUPPER + ADD_NL
+    NFA_LAST_NL = NFA_NUPPER + ADD_NL,
+
+/* Character classes [:alnum:] etc */
+    NFA_CLASS_ALNUM,
+    NFA_CLASS_ALPHA,
+    NFA_CLASS_BLANK,
+    NFA_CLASS_CNTRL,
+    NFA_CLASS_DIGIT,
+    NFA_CLASS_GRAPH,
+    NFA_CLASS_LOWER,
+    NFA_CLASS_PRINT,
+    NFA_CLASS_PUNCT,
+    NFA_CLASS_SPACE,
+    NFA_CLASS_UPPER,
+    NFA_CLASS_XDIGIT,
+    NFA_CLASS_TAB,
+    NFA_CLASS_RETURN,
+    NFA_CLASS_BACKSPACE,
+    NFA_CLASS_ESCAPE
 };
 
 /*
@@ -795,6 +813,7 @@ get_equi_class(pp)
 /*
  * Produce the bytes for equivalence class "c".
  * Currently only handles latin1, latin9 and utf-8.
+ * NOTE: When changing this function, also change nfa_emit_equi_class()
  */
     static void
 reg_equi_class(c)
@@ -1615,8 +1634,7 @@ static int	classcodes[] = {ANY, IDENT, SIDENT, KWORD, SKWORD,
 				    ALPHA, NALPHA, LOWER, NLOWER,
 				    UPPER, NUPPER
 				    };
-static int	nfa_classcodes[] = {NFA_ANY, NFA_IDENT, NFA_SIDENT, NFA_KWORD,
-				NFA_SKWORD,
+static int	nfa_classcodes[] = {NFA_ANY, NFA_IDENT, NFA_SIDENT, NFA_KWORD,NFA_SKWORD,
 				NFA_FNAME, NFA_SFNAME, NFA_PRINT, NFA_SPRINT,
 				NFA_WHITE, NFA_NWHITE, NFA_DIGIT, NFA_NDIGIT,
 				NFA_HEX, NFA_NHEX, NFA_OCTAL, NFA_NOCTAL,
@@ -7369,9 +7387,13 @@ static regengine_T bt_regengine =
     bt_regexec_multi,
 };
 
+static int regexp_engine;
+#define	    AUTOMATIC_ENGINE	0
+#define	    BACKTRACKING_ENGINE	1
+#define	    NFA_ENGINE		2
+
 
 #include "nfa_regexp.c"
-
 
 static struct regengine nfa_regengine =
 {
@@ -7393,29 +7415,46 @@ vim_regcomp(expr, re_flags)
     // First try the NFA engine
     regprog_T   *prog = NULL;
     syntax_error = FALSE;
-    prog = nfa_regengine.regcomp(expr, re_flags);
-    // If failed or multi-byte characters (not fully supported), then revert to old engine
-    if (prog == NULL)
+    if ((STRLEN(expr))>=5)
+	if (STRNCMP(expr, "\\%#=", 4) == 0)
+	{
+	    regexp_engine = expr[4] - '0';	/* either AUTOMATIC_ENGINE, BT_ENGINE, NFA_ENGINE */
+	    expr += 5;
+	    regparse += 5;
+	    EMSG2("New regexp mode selected: %d", regexp_engine);
+	}
+    if (regexp_engine != BACKTRACKING_ENGINE)
+        prog = nfa_regengine.regcomp(expr, re_flags);
+    else
+	prog = bt_regengine.regcomp(expr, re_flags);
+
+    if (prog == NULL)	    /* error compiling regexp with initial engine */
     {
 #ifdef DEBUG
-	FILE *f;
-	f=fopen("debug.log","a");
-        if (f)
+	if (regexp_engine != BACKTRACKING_ENGINE)	    /* debugging log for NFA */
 	{
-		if (!syntax_error)
-		    fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
-		else
-		    fprintf(f,"Syntax error in \"%s\"\n", expr);
-		fclose(f);
+	    FILE *f;
+	    f=fopen("debug.log","a");
+	    if (f)
+	    {
+		    if (!syntax_error)
+			fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
+		    else
+			fprintf(f,"Syntax error in \"%s\"\n", expr);
+		    fclose(f);
+	    }
+	    if (syntax_error)
+		EMSG("NFA Regexp: Syntax Error !");
 	}
-//        EMSG("ERROR !! NFA engine does not suport this regexp ! Reverting to old engine ... ");
-        if (syntax_error)
-	    EMSG("NFA Regexp: Syntax Error !");
 #endif
-	// use old engine
-	if (!syntax_error)
-            prog = bt_regengine.regcomp(expr, re_flags);
-    }
+	/* If NFA engine failed, then revert to the backtracking engine. 
+	 * Exception: when there was a syntax error, which was properly handled by NFA engine */
+	if (regexp_engine == AUTOMATIC_ENGINE)
+	    if (!syntax_error)
+		prog = bt_regengine.regcomp(expr, re_flags);
+
+    }	    /* endif prog==NULL */
+
     return prog;
 }
 

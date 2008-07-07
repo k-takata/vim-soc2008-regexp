@@ -51,6 +51,13 @@ int count = 0;
 }
 */
 
+/* helper fuctions used when doing re2post() parsing */
+#define EMIT(c)	do {				\
+		    if (post_ptr >= post_end)	\
+			return FAIL;		\
+		    *post_ptr++ = c;		\
+		} while (0)
+
 /*
  * Initialize internal variables before NFA compilation.
  * Return OK on success, FAIL otherwise.
@@ -81,17 +88,153 @@ nfa_regcomp_start(expr, re_flags)
     return OK;
 }
 
-/* helper fuctions used when doing re2post() parsing */
-#define EMIT(c)	do {				\
-		    if (post_ptr >= post_end)	\
-			return FAIL;		\
-		    *post_ptr++ = c;		\
-		} while (0)
+/*
+ * Produce the bytes for equivalence class "c".
+ * Currently only handles latin1, latin9 and utf-8.
+ * Emits bytes in postfix notation: 'a,b,NFA_OR,c,NFA_OR' is equivalent to 'a OR b OR c'
+ * NOTE! When changing this function, also update reg_equi_class()
+ */
+    static int
+nfa_emit_equi_class(c)
+    int	    c;
+{
+#ifdef FEAT_MBYTE
+    if (enc_utf8 || STRCMP(p_enc, "latin1") == 0
+					 || STRCMP(p_enc, "iso-8859-15") == 0)
+#endif
+    {
+	switch (c)
+	{
+	    case 'A': case '\300': case '\301': case '\302':
+	    case '\303': case '\304': case '\305':
+		    EMIT('A');
+		    EMIT('\300');   EMIT(NFA_OR);
+		    EMIT('\301');   EMIT(NFA_OR);
+		    EMIT('\302');   EMIT(NFA_OR);
+		    EMIT('\303');   EMIT(NFA_OR);
+		    EMIT('\304');   EMIT(NFA_OR);
+		    EMIT('\305');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'C': case '\307':
+		    EMIT('C');
+		    EMIT('\307');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'E': case '\310': case '\311': case '\312': case '\313':
+		    EMIT('E');
+		    EMIT('\310');   EMIT(NFA_OR);
+		    EMIT('\311');   EMIT(NFA_OR);
+		    EMIT('\312');   EMIT(NFA_OR);
+		    EMIT('\313');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'I': case '\314': case '\315': case '\316': case '\317':
+		    EMIT('I');
+		    EMIT('\315');   EMIT(NFA_OR);
+		    EMIT('\316');   EMIT(NFA_OR);
+		    EMIT('\317');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'N': case '\321':
+		    EMIT('N');
+		    EMIT('\321');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'O': case '\322': case '\323': case '\324': case '\325':
+	    case '\326':
+		    EMIT('O');
+		    EMIT('\322');   EMIT(NFA_OR);
+		    EMIT('\323');   EMIT(NFA_OR);
+		    EMIT('\324');   EMIT(NFA_OR);
+		    EMIT('\325');   EMIT(NFA_OR);
+		    EMIT('\326');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'U': case '\331': case '\332': case '\333': case '\334':
+		    EMIT('U');
+		    EMIT('\331');   EMIT(NFA_OR);
+		    EMIT('\332');   EMIT(NFA_OR);
+		    EMIT('\333');   EMIT(NFA_OR);
+		    EMIT('\334');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'Y': case '\335':
+		    EMIT('Y');
+		    EMIT('\335');   EMIT(NFA_OR);
+		    return 0; 
+
+	    case 'a': case '\340': case '\341': case '\342':
+	    case '\343': case '\344': case '\345':
+		    EMIT('a');
+		    EMIT('\340');   EMIT(NFA_OR);
+		    EMIT('\341');   EMIT(NFA_OR);
+		    EMIT('\342');   EMIT(NFA_OR);
+		    EMIT('\343');   EMIT(NFA_OR);
+		    EMIT('\344');   EMIT(NFA_OR);
+		    EMIT('\345');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'c': case '\347':
+		    EMIT('c');
+		    EMIT('\347');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'e': case '\350': case '\351': case '\352': case '\353':
+		    EMIT('e');
+		    EMIT('\350');   EMIT(NFA_OR);
+		    EMIT('\351');   EMIT(NFA_OR);
+		    EMIT('\352');   EMIT(NFA_OR);
+		    EMIT('\353');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'i': case '\354': case '\355': case '\356': case '\357':
+		    EMIT('i');
+		    EMIT('\354');   EMIT(NFA_OR);
+		    EMIT('\355');   EMIT(NFA_OR);
+		    EMIT('\356');   EMIT(NFA_OR);
+		    EMIT('\357');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'n': case '\361':
+		    EMIT('n');
+		    EMIT('\361');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'o': case '\362': case '\363': case '\364': case '\365':
+	    case '\366':
+		    EMIT('o');
+		    EMIT('\362');   EMIT(NFA_OR);
+		    EMIT('\363');   EMIT(NFA_OR);
+		    EMIT('\364');   EMIT(NFA_OR);
+		    EMIT('\365');   EMIT(NFA_OR);
+		    EMIT('\366');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'u': case '\371': case '\372': case '\373': case '\374':
+		    EMIT('u');
+		    EMIT('\371');   EMIT(NFA_OR);
+		    EMIT('\372');   EMIT(NFA_OR);
+		    EMIT('\373');   EMIT(NFA_OR);
+		    EMIT('\374');   EMIT(NFA_OR);
+		    return 0;
+
+	    case 'y': case '\375': case '\377':
+		    EMIT('y');
+		    EMIT('\375');   EMIT(NFA_OR);
+		    EMIT('\377');   EMIT(NFA_OR);
+		    return 0;
+	}
+    }
+
+    EMIT(c);
+    return 0;
+}
 
 /*
  * Code to parse regular expression.
  *
- * We try to reuse parsing functions above to
+ * We try to reuse parsing functions in regexp.c to
  * minimize surprise and keep the syntax consistent.
  */
 
@@ -114,9 +257,15 @@ static int nfa_reg(int paren);
     static int
 nfa_regatom()
 {
-    int		c;
-    char_u	*p, *rp;
-    int		extra = 0;
+    int		c, charclass, equiclass, collclass; 
+    char_u	*p, *endp;
+    int		extra = 0, first, emit_range;
+    int		startc = -1, endc = -1, oldstartc = -1;
+    int		cpo_lit;	/* 'cpoptions' contains 'l' flag */
+    int		cpo_bsl;	/* 'cpoptions' contains '\' flag */
+
+    cpo_lit = vim_strchr(p_cpo, CPO_LITERAL) != NULL;
+    cpo_bsl = vim_strchr(p_cpo, CPO_BACKSL) != NULL;
 
     c = getchr();
     /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
@@ -148,16 +297,16 @@ nfa_regatom()
 		  c = no_Magic(getchr());
 		  if (c == '^')	/* "\_^" is start-of-line */
 		  {
-		  EMIT(NFA_BOL);
-		  break;
+		      EMIT(NFA_BOL);
+		      break;
 		  }
 		  if (c == '$')	/* "\_$" is end-of-line */
 		  {
-		  EMIT(NFA_EOL);
+		      EMIT(NFA_EOL);
 #if defined(FEAT_SYN_HL) || defined(PROTO)
-		  had_eol = TRUE;
+		      had_eol = TRUE;
 #endif
-		  break;
+		      break;
 		  }
 
 		  return FAIL;	/* TODO(RE) Why fail here? */
@@ -205,35 +354,32 @@ nfa_regatom()
 			p = vim_strchr(classchars, no_Magic(c));
 			if (p == NULL)
 			{
-			return FAIL;	    /* runtime error */
+			    return FAIL;	    /* runtime error */
 			}
 #ifdef FEAT_MBYTE
 			/* When '.' is followed by a composing char ignore the dot, so that
 			 * the composing char is matched here. */
 			if (enc_utf8 && c == Magic('.') && utf_iscomposing(peekchr()))
 			{
-				c = getchr();
-				goto nfa_do_multibyte;
+			    c = getchr();
+			    goto nfa_do_multibyte;
 			}
 #endif
-			/* only '.' is supported for now */
-			if (c == Magic('.'))
-			{
+#ifdef DEBUG
+	EMSG3("NFA: Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
+#endif
 			EMIT(nfa_classcodes[p - classchars] + extra);
 			break;
-			}
-			else
-			return FAIL;	    /* unsupported */
 
 		case Magic('n'):
 			if (reg_string)
-			/* In a string "\n" matches a newline character. */
-			EMIT(NL);
+			    /* In a string "\n" matches a newline character. */
+			    EMIT(NL);
 			else
 			{
-			/* In buffer text "\n" matches the end of a line. */
-			EMIT(NFA_NEWL);
-			regflags |= RF_HASNL;
+			    /* In buffer text "\n" matches the end of a line. */
+			    EMIT(NFA_NEWL);
+			    regflags |= RF_HASNL;
 			}
 			break;
 
@@ -246,9 +392,8 @@ nfa_regatom()
 		case Magic('|'):
 		case Magic('&'):
 		case Magic(')'):
-			EMSG("NFA regexp: Misplaced closing ')' ");
 			syntax_error = TRUE;
-			return FAIL;
+			EMSG_RET_FAIL("NFA regexp: Misplaced closing ')' ");
 
 		case Magic('='):
 		case Magic('?'):
@@ -256,9 +401,9 @@ nfa_regatom()
 		case Magic('@'):
 		case Magic('*'):
 		case Magic('{'):
-			EMSG("NFA regexp: Misplaced =?+@*{");
+			/* these should follow an atom, not form an atom */
 			syntax_error = TRUE;
-			return FAIL;		/* these should follow an atom, not form an atom */
+			EMSG_RET_FAIL("NFA regexp: Misplaced =?+@*{");
 
 		case Magic('~'):		/* previous substitute pattern */
 			/* Not supported yet */
@@ -273,49 +418,213 @@ nfa_regatom()
 		case Magic('7'):
 		case Magic('8'):
 		case Magic('9'):
-			  /* not supported yet */
-			  return FAIL;
+		      /* not supported yet */
+		      return FAIL;
 
 		case Magic('z'):
 		case Magic('%'):
-			  /* not supported yet */
-			  return FAIL;
+		      /* not supported yet */
+		      return FAIL;
 
 		case Magic('['):
-			p = regparse;
-			rp = skip_anyof(regparse);		/* Skip over [] */
-			if (*rp == ']')					/* there is a matching ']' */
+		    p = regparse;
+		    endp = skip_anyof(p);		/* Skip over [] */
+		    if (*endp == ']')			/* there is a matching ']', so no syntax error */
+		    {
+			if (*regparse == '^') 			/* negated range */
 			{
-				if (*p == '^' || 			/* negated range */
-					((get_char_class(&p) != CLASS_NONE)
-					&& (get_equi_class(&p) != 0)
-					&& (get_coll_element(&p) != 0)))
-				{
 #ifdef DEBUG
-					EMSG("NFA regexp: Negated character ranges and collating char classes are not yet supported ");
+			    EMSG_RET_FAIL("NFA regexp: ^ is not yet supported in NFA");
 #endif
-					/* not supported yet */
-					return FAIL;
-				}
-
-				EMIT(*p++);
-				while (p < rp)
-				{
-					EMIT(*p);
-					EMIT(NFA_OR);
-					p++;
-				}
+			    /* not supported yet */
 			}
-			else 
-			if (reg_strict)
-			{
-				EMSG(_("E769: Missing ] after ["));
-				syntax_error = TRUE;
-				return FAIL;
-			}	
-			regparse = rp+1;		/* skip the trailing ] */
 
+
+			/* Emit the OR branches for each character in the [] */
+			first = TRUE;		/* Emitting first atom in this sequence? */
+			startc = endc = oldstartc = -1;
+			emit_range = FALSE;
+			while (regparse < endp)
+			{
+			    oldstartc = startc;
+			    startc = -1;
+			    if (*regparse == '[')
+			    {
+				/* Check for [: :], [= =], [. .] */
+				equiclass = collclass = 0;
+				charclass = get_char_class(&regparse);
+				if (charclass == CLASS_NONE) 
+				{
+				    equiclass = get_equi_class(&regparse);
+				    if (equiclass == 0)
+					collclass = get_coll_element(&regparse);
+				}
+
+				/* Character class like [:alpha:]  */
+				if (charclass != CLASS_NONE)
+				{
+				    switch (charclass)
+				    {
+					case CLASS_ALNUM:
+					    EMIT(NFA_CLASS_ALNUM);
+					    break;
+					case CLASS_ALPHA:
+					    EMIT(NFA_CLASS_ALPHA);
+					    break;
+					case CLASS_BLANK:
+					    EMIT(NFA_CLASS_BLANK);
+					    break;
+					case CLASS_CNTRL:
+					    EMIT(NFA_CLASS_CNTRL);
+					    break;
+					case CLASS_DIGIT:
+					    EMIT(NFA_CLASS_DIGIT);
+					    break;
+					case CLASS_GRAPH:
+					    EMIT(NFA_CLASS_GRAPH);
+					    break;
+					case CLASS_LOWER:
+					    EMIT(NFA_CLASS_LOWER);
+					    break;
+					case CLASS_PRINT:
+					    EMIT(NFA_CLASS_PRINT);
+					    break;
+					case CLASS_PUNCT:
+					    EMIT(NFA_CLASS_PUNCT);
+					    break;
+					case CLASS_SPACE:
+					    EMIT(NFA_CLASS_SPACE);
+					    break;
+					case CLASS_UPPER:
+					    EMIT(NFA_CLASS_UPPER);
+					    break;
+					case CLASS_XDIGIT:
+					    EMIT(NFA_CLASS_XDIGIT);
+					    break;
+					case CLASS_TAB:
+					    EMIT(NFA_CLASS_TAB);
+					    break;
+					case CLASS_RETURN:
+					    EMIT(NFA_CLASS_RETURN);
+					    break;
+					case CLASS_BACKSPACE:
+					    EMIT(NFA_CLASS_BACKSPACE);
+					    break;
+					case CLASS_ESCAPE:
+					    EMIT(NFA_CLASS_ESCAPE);
+					    break;
+				    }
+				    if (first == FALSE)
+					EMIT(NFA_OR);
+				    else
+					first = FALSE;
+				    continue;
+				}
+				/* Try equivalence class [=a=] and the like */
+				if (equiclass != 0)
+				{
+				    nfa_emit_equi_class(equiclass);
+				    if (first == FALSE)
+					EMIT(NFA_OR);
+				    else
+					first = FALSE;
+				    continue;
+				}
+				/* Try collating class like [. .]  */
+				if (collclass != 0)
+				{
+				    startc = collclass;	    /* allow [.a.]-x as a range */
+				    /* Will emit the proper atom at the end of the while loop */
+				}
+			    }
+			    /* Try a range like 'a-x' or '\t-z' */
+			    if (*regparse == '-')
+			    {
+				emit_range = TRUE;
+				startc = oldstartc;
+				regparse++;
+				continue;	    /* reading the end of the range */
+			    }
+
+			    /* Now handle simple and escaped characters.
+			     * Only "\]", "\^", "\]" and "\\" are special in Vi.  Vim
+			     * accepts "\t", "\e", etc., but only when the 'l' flag in
+			     * 'cpoptions' is not included.
+			     * Posix doesn't recognize backslash at all.
+			     */
+			    if  (*regparse == '\\' && !cpo_bsl && regparse+1 <= endp && 
+				    (vim_strchr(REGEXP_INRANGE, regparse[1]) != NULL ||
+					(!cpo_lit && vim_strchr(REGEXP_ABBR, regparse[1]) != NULL)
+				    )
+				)
+			    {
+				regparse++;
+
+				if (*regparse == 'u' || *regparse == 'U')
+				    return FAIL;	/* multibyte chars not supported yet */
+
+				if (*regparse == 'n' || *regparse == 'n')
+				    startc = NFA_NEWL;
+				else
+				if (*regparse == 'd'
+				    || *regparse == 'o'
+				    || *regparse == 'x')
+				{
+				    startc = coll_get_char();
+				    if (startc == 0)
+				    {
+					startc = 0x0a;		/* revert to slash in case of no number after \x */
+				    }
+				}
+				else
+				{
+				    startc = backslash_trans(*regparse);	    /* \r,\t,\e,\b */
+				}
+			    }
+
+			    /* Normal printable char */
+			    if (startc == -1)
+				startc = *regparse;
+			    if (startc >= 256)
+				EMSG_RET_FAIL("NFA regexp: Multibyte characters are not yet supported");
+			    
+			    if (emit_range)
+			    {
+				endc = startc; startc = oldstartc;
+				if (startc > endc || startc + 256 < endc)
+				    EMSG_RET_FAIL(_(e_invrange));
+				/* Emit the range */
+				for (c = startc+1; c <= endc; c++)
+				{
+				    EMIT(c);
+				    if (first == FALSE)
+					EMIT(NFA_OR);
+				    else    
+					first = FALSE;
+				}
+				emit_range = FALSE;
+			    }
+			    else
+			    {
+				EMIT(startc);
+				if (first == FALSE)
+				    EMIT(NFA_OR);
+				else
+				    first = FALSE;
+			    }
+
+			    regparse++;
+			}	    /* while (p < endp) */
+
+			regparse = endp+1;		/* skip the trailing ] */
 			return OK;
+		    }		/* if exists closing ] */
+		    else 
+		    if (reg_strict)
+		    {
+			syntax_error = TRUE;
+			EMSG_RET_FAIL(_("E769: Missing ] after ["));
+		    }
 
 		/* FALLTHROUGH */
 		default:
@@ -327,15 +636,12 @@ nfa_regatom()
 			if (has_mbyte && (*mb_char2len)(c) > 1
 					 && (enc_utf8 && utf_iscomposing(c)))
 			{
-
-			/* composing char not supported yet */
-			return FAIL;
+			    /* composing char not supported yet */
+			    return FAIL;
 			}
-#endif
-
-#ifdef FEAT_MBYTE
 			/* composing char not supported yet */
 #endif
+			c = no_Magic(c);
 			EMIT(c);
 
 			return OK;
@@ -418,10 +724,16 @@ nfa_regpiece()
 	    }
 	    if (!read_limits(&minval, &maxval))
 	    {
-		EMSG("NFA regexp: Error reading repetition limits");
 		syntax_error = TRUE;
-		return FAIL;
+		EMSG_RET_FAIL("NFA regexp: Error reading repetition limits");
 	    }
+	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to <atom>*  */
+	    if (minval == 0 && maxval == MAX_LIMIT && greedy)	
+	    {
+		EMIT(NFA_STAR);
+		break;
+	    }
+
 	    if (maxval > NFA_BRACES_MAXLIMIT)
 	    {
 		/* This would yield a huge automaton and use too much memory.
@@ -469,9 +781,8 @@ nfa_regpiece()
     if (re_multi_type(peekchr()) != NOT_MULTI)
     {
 	/* Can't have a multi follow a multi. */
-	EMSG("NFA regexp: Can't have a multi follow a multi !");
 	syntax_error = TRUE;
-	return FAIL;
+	EMSG_RET_FAIL("NFA regexp: Can't have a multi follow a multi !");
     }
 
     return OK;
@@ -546,9 +857,8 @@ nfa_regconcat()
 		{   
 		    if (nfa_just_found_braces)
 		    {
-			EMSG("NFA regexp:  Can't begina regexp with repetition braces ");
 			syntax_error = TRUE;
-			return FAIL;
+			EMSG_RET_FAIL("NFA regexp:  Can't begina regexp with repetition braces ");
 		    }
 		    first = FALSE;
 		}
@@ -609,9 +919,8 @@ nfa_reg(paren)
     {
 	if (regnpar >= NSUBEXP) /* Too many `(' */
 	{
-	    EMSG("NFA regexp: Too many '('");
 	    syntax_error = TRUE;
-	    return FAIL;
+	    EMSG_RET_FAIL("NFA regexp: Too many '('");
 	}
 	parno = regnpar++ - nfa_paren_offset;
     }
@@ -630,15 +939,13 @@ nfa_reg(paren)
     /* Check for proper termination. */
     if (paren != REG_NOPAREN && getchr() != Magic(')'))
     {
-	EMSG("NFA regexp: Group is not properly terminated ");
 	syntax_error = TRUE;
-	return FAIL;
+	EMSG_RET_FAIL("NFA regexp: Group is not properly terminated ");
     }
     else if (paren == REG_NOPAREN && peekchr() != NUL)
     {
-	EMSG("NFA regexp: proper termination error ");
 	syntax_error = TRUE;
-	return FAIL;
+	EMSG_RET_FAIL("NFA regexp: proper termination error ");
     }
     /*
      * Here we set the flag allowing back references to this set of
@@ -673,6 +980,7 @@ static void nfa_set_code(int c)
         case NFA_MATCH: STRCPY(code, "NFA_MATCH "); break;
         case NFA_SPLIT: STRCPY(code, "NFA_SPLIT "); break;
 	case NFA_CONCAT: STRCPY(code, "NFA_CONCAT "); break;
+	case NFA_NEWL:	STRCPY(code, "NFA_NEWL "); break;
 	case NFA_MOPEN + 0: 
 	case NFA_MOPEN + 1: 
 	case NFA_MOPEN + 2: 
@@ -701,14 +1009,58 @@ static void nfa_set_code(int c)
 	    break;
 	case NFA_EOL: STRCPY(code, "NFA_EOL "); break;
 	case NFA_BOL: STRCPY(code, "NFA_BOL "); break;
-	case NFA_ANY: STRCPY(code, "NFA_ANY "); break;
 	case NFA_STAR: STRCPY(code, "NFA_STAR "); break;
 	case NFA_PLUS: STRCPY(code, "NFA_PLUS "); break;
 	case NFA_SKIP_CHAR: STRCPY(code, "NFA_SKIP_CHAR"); break;
 	case NFA_OR: STRCPY(code, "NFA_OR"); break;
 	case NFA_QUEST:	STRCPY(code, "NFA_QUEST"); break;
 	case NFA_QUEST_NONGREEDY: STRCPY(code, "NFA_QUEST_NON_GREEDY"); break;
-        default:    
+	case NFA_CLASS_ALNUM:	STRCPY(code, "NFA_CLASS_ALNUM"); break;
+	case NFA_CLASS_ALPHA:	STRCPY(code, "NFA_CLASS_ALPHA"); break;
+	case NFA_CLASS_BLANK:	STRCPY(code, "NFA_CLASS_BLANK"); break;
+	case NFA_CLASS_CNTRL:	STRCPY(code, "NFA_CLASS_CNTRL"); break;
+	case NFA_CLASS_DIGIT:	STRCPY(code, "NFA_CLASS_DIGIT"); break;
+	case NFA_CLASS_GRAPH:	STRCPY(code, "NFA_CLASS_GRAPH"); break;
+	case NFA_CLASS_LOWER:	STRCPY(code, "NFA_CLASS_LOWER"); break;
+	case NFA_CLASS_PRINT:	STRCPY(code, "NFA_CLASS_PRINT"); break;
+	case NFA_CLASS_PUNCT:	STRCPY(code, "NFA_CLASS_PUNCT"); break;
+	case NFA_CLASS_SPACE:	STRCPY(code, "NFA_CLASS_SPACE"); break;
+	case NFA_CLASS_UPPER:	STRCPY(code, "NFA_CLASS_UPPER"); break;
+	case NFA_CLASS_XDIGIT:	STRCPY(code, "NFA_CLASS_XDIGIT"); break;
+	case NFA_CLASS_TAB:	STRCPY(code, "NFA_CLASS_TAB"); break;
+	case NFA_CLASS_RETURN:	STRCPY(code, "NFA_CLASS_RETURN"); break;
+	case NFA_CLASS_BACKSPACE:   STRCPY(code, "NFA_CLASS_BACKSPACE"); break;
+	case NFA_CLASS_ESCAPE:	STRCPY(code, "NFA_CLASS_ESCAPE"); break;
+        
+	case NFA_ANY:	STRCPY(code, "NFA_ANY"); break;
+	case NFA_IDENT:	STRCPY(code, "NFA_IDENT"); break;
+	case NFA_SIDENT:	STRCPY(code, "NFA_SIDENT"); break;
+	case NFA_KWORD:	STRCPY(code, "NFA_KWORD"); break;
+	case NFA_SKWORD:	STRCPY(code, "NFA_SKWORD"); break;
+	case NFA_FNAME:	STRCPY(code, "NFA_FNAME"); break;
+	case NFA_SFNAME:	STRCPY(code, "NFA_SFNAME"); break;
+	case NFA_PRINT:	STRCPY(code, "NFA_PRINT"); break;
+	case NFA_SPRINT:	STRCPY(code, "NFA_SPRINT"); break;
+	case NFA_WHITE:	STRCPY(code, "NFA_WHITE"); break;
+	case NFA_NWHITE:	STRCPY(code, "NFA_NWHITE"); break;
+	case NFA_DIGIT:	STRCPY(code, "NFA_DIGIT"); break;
+	case NFA_NDIGIT:	STRCPY(code, "NFA_NDIGIT"); break;
+	case NFA_HEX:	STRCPY(code, "NFA_HEX"); break;
+	case NFA_NHEX:	STRCPY(code, "NFA_NHEX"); break;
+	case NFA_OCTAL:	STRCPY(code, "NFA_OCTAL"); break;
+	case NFA_NOCTAL:	STRCPY(code, "NFA_NOCTAL"); break;
+	case NFA_WORD:	STRCPY(code, "NFA_WORD"); break;
+	case NFA_NWORD:	STRCPY(code, "NFA_NWORD"); break;
+	case NFA_HEAD:	STRCPY(code, "NFA_HEAD"); break;
+	case NFA_NHEAD:	STRCPY(code, "NFA_NHEAD"); break;
+	case NFA_ALPHA:	STRCPY(code, "NFA_ALPHA"); break;
+	case NFA_NALPHA:	STRCPY(code, "NFA_NALPHA"); break;
+	case NFA_LOWER:	STRCPY(code, "NFA_LOWER"); break;
+	case NFA_NLOWER:	STRCPY(code, "NFA_NLOWER"); break;
+	case NFA_UPPER:	STRCPY(code, "NFA_UPPER"); break;
+	case NFA_NUPPER:	STRCPY(code, "NFA_NUPPER"); break;
+	
+	default:    
             STRCPY(code, "CHAR(x)");
             code[5] = c;
     }
@@ -757,9 +1109,7 @@ static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
     
     state->id = abs(state->id) * -1;
     nfa_print_state(debugf, state->out, ident+4);
-    state->id = abs(state->id) * -1;
     nfa_print_state(debugf, state->out1, ident+4);
-    state->id = abs(state->id);
 }
 
 static void nfa_dump(nfa_regprog_T *prog)
@@ -1090,10 +1440,7 @@ post2nfa(postfix)
 
     e = POP();
     if (stackp != stack)
-    {
-	EMSG("NFA regexp: (While converting from postfix to NFA), too many states left on stack ");
-	return NULL;
-    }
+	EMSG_RET_NULL("NFA regexp: (While converting from postfix to NFA), too many states left on stack ");
 
     if (istate >= nstate)
 	return NULL;
@@ -1140,12 +1487,14 @@ addstate(l, state, m, off, lid, match)
     if (l == NULL || state == NULL) /* never happen */
 	return;
 
-    /* Only remember states with printable chars (c>0) or beginning of groups, and codes used in nfa_regmatch() */
-    if (state->c > 0
+    /* Only remember states with printable chars or beginning of groups, and codes used in nfa_regmatch() */
+    if (state->c > 0 
 	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
 	|| (state->c == NFA_MATCH) || (state->c == NFA_BOW) || (state->c == NFA_EOW)
 	|| (state->c == NFA_ANY) || (state->c == NFA_BOL) || (state->c == NFA_EOL)
 	|| (state->c == NFA_NEWL)
+	|| (state->c >= NFA_CLASS_ALPHA && state->c <= NFA_CLASS_ESCAPE)
+	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)
 	)
     {	
 	if (state->lastlist == lid)
@@ -1262,6 +1611,85 @@ addstate(l, state, m, off, lid, match)
     }
 }
 
+/* Check character class "class" against current character c. */
+static int check_char_class(class, c)
+    int		class;
+    int		c;
+{
+    switch (class)
+    {
+	case NFA_CLASS_ALNUM:
+	    if (isalnum(c))
+		return OK;
+	    break;
+	case NFA_CLASS_ALPHA:
+	    if (isalpha(c))
+		return OK;
+	    break;
+	case NFA_CLASS_BLANK:
+	    if (c == ' ' || c == '\t')
+		return OK;
+	    break;
+	case NFA_CLASS_CNTRL:
+	    if (iscntrl(c))
+		return OK;
+	    break;
+	case NFA_CLASS_DIGIT:
+	    if (VIM_ISDIGIT(c))
+		return OK;
+	    break;
+	case NFA_CLASS_GRAPH:
+	    if (isgraph(c))
+		return OK;
+	    break;
+	case NFA_CLASS_LOWER:
+	    if (MB_ISLOWER(c))
+		return OK;
+	    break;
+	case NFA_CLASS_PRINT:
+	    if (vim_isprintc(c))
+		return OK;
+	    break;
+	case NFA_CLASS_PUNCT:
+	    if (ispunct(c))
+		return OK;
+	    break;
+	case NFA_CLASS_SPACE:
+	    if ((c >=9 && c <= 13) || (c == ' '))
+		return OK;
+	    break;
+	case NFA_CLASS_UPPER:
+	    if (MB_ISUPPER(c))
+		return OK;
+	    break;
+	case NFA_CLASS_XDIGIT:
+	    if (vim_isxdigit(c))
+		return OK;
+	    break;
+	case NFA_CLASS_TAB:
+	    if (c == '\t')
+		return OK;
+	    break;
+	case NFA_CLASS_RETURN:
+	    if (c == '\r')
+		return OK;
+	    break;
+	case NFA_CLASS_BACKSPACE:
+	    if (c == '\b')
+		return OK;
+	    break;
+	case NFA_CLASS_ESCAPE:
+	    if (c == '\033')
+		return OK;
+	    break;
+	
+	default:
+	    /* should not be here :P */
+	    EMSG_RET_FAIL("NFA regexp: Invalid character class ");
+    }
+    return FAIL;
+}
+
 /*
  * nfa_regmatch - main matching routine
  *
@@ -1304,7 +1732,7 @@ nfa_regmatch(start, submatch)
     listid = 1;
 
 #ifdef DEBUG
-    f = fopen("regmatch.log","a");
+    f = fopen("log_nfarun.log","a");
     fprintf(f, "\n\n\n\n\n\n=======================================================\n");
     fprintf(f, "=======================================================\n\n\n\n\n\n\n");
     nfa_print_state(f, start, 0);
@@ -1429,10 +1857,6 @@ again:
 		break;
 	    }
 
-	    case NFA_ANY:
-		addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
-		break;
-
 	    case NFA_NEWL:
 		if (!reg_line_lbr && REG_MULTI
 				&& c == NUL && reglnum <= reg_maxline)
@@ -1442,6 +1866,163 @@ again:
 		    reginput_updated = TRUE;
 		}
 		break;
+
+	    case NFA_CLASS_ALNUM:
+	    case NFA_CLASS_ALPHA:
+	    case NFA_CLASS_BLANK:
+	    case NFA_CLASS_CNTRL:
+	    case NFA_CLASS_DIGIT:
+	    case NFA_CLASS_GRAPH:
+	    case NFA_CLASS_LOWER:
+	    case NFA_CLASS_PRINT:
+	    case NFA_CLASS_PUNCT:
+	    case NFA_CLASS_SPACE:
+	    case NFA_CLASS_UPPER:
+	    case NFA_CLASS_XDIGIT:
+	    case NFA_CLASS_TAB:
+	    case NFA_CLASS_RETURN:
+	    case NFA_CLASS_BACKSPACE:
+	    case NFA_CLASS_ESCAPE:
+		if (check_char_class(t->state->c, c) == OK)
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+
+/* Character classes like \a for alpha, \d for digit etc */
+
+	    case NFA_ANY:
+		addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_IDENT:
+		if (vim_isIDc(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_SIDENT:
+		if (!VIM_ISDIGIT(c) && vim_isIDc(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_KWORD:
+		if (vim_iswordp(&c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_SKWORD:
+		if (!VIM_ISDIGIT(c) && vim_iswordp(&c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_FNAME:
+		if (vim_isfilec(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_SFNAME:
+		if (!VIM_ISDIGIT(c) && vim_isfilec(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_PRINT:
+		if (ptr2cells(&c) == 1)
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_SPRINT:
+		if (!VIM_ISDIGIT(c) && ptr2cells(&c) == 1)
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_WHITE:
+		if (vim_iswhite(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NWHITE:
+		if (c != NUL && !vim_iswhite(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_DIGIT:
+		if (ri_digit(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NDIGIT:
+		if (c != NUL && !ri_digit(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_HEX:
+		if (ri_hex(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NHEX:
+		if (c != NUL && !ri_hex(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_OCTAL:
+		if (ri_octal(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NOCTAL:
+		if (c != NUL && !ri_octal(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_WORD:
+		if (ri_word(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NWORD:
+		if (c != NUL && !ri_word(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_HEAD:
+		if (ri_head(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NHEAD:
+		if (c != NUL && !ri_head(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_ALPHA:
+		if (ri_alpha(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NALPHA:
+		if (c != NUL && !ri_alpha(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_LOWER:
+		if (ri_lower(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NLOWER:
+		if (c != NUL && !ri_lower(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_UPPER:
+		if (ri_upper(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+	    case NFA_NUPPER:
+		if (c != NUL && !ri_upper(c))
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
+
+
 
 	    default:	/* regular character */
 		if (t->state->c == c)
@@ -1663,7 +2244,7 @@ nfa_regcomp(expr, re_flags)
      * 2. second to emit code 
      */
 #ifdef DEBUG
-    FILE *f = fopen("regmatch.log", "a");
+    FILE *f = fopen("log_nfarun.log", "a");
     if (f)
     {
 	fprintf(f, "\n***************\n\n\n\nCompiling regexp \"%s\" ... hold on !\n\n\n", expr);
