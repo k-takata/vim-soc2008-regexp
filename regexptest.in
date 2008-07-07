@@ -108,12 +108,22 @@ STARTTEST
 :call add(tl, ['\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
 :call add(tl, ['\v(a{-1,3})+','aa','aa','a'])
 
+:" Test character range []
+:call add(tl, ['\v[a]', 'abcd', 'a'])
+:call add(tl, ['a[bcd]', 'abcd', 'ab'])
+:call add(tl, ['a[b-d]', 'acbd', 'ac'])
+:call add(tl, ['[a-d][e-f][x-x]d', 'cexdxx', 'cexd'])
+:call add(tl, ['\v[[:alpha:]]+', 'abcdefghijklmnopqrstuvwxyz6','abcdefghijklmnopqrstuvwxyz'])
+:call add(tl, ['[[:alpha:]\+]', '6x8','x'])
+
+
+:" Test Character classes 
+:call add(tl, ['\d\+e\d\d','test 10e23 fd','10e23'])
+
 :"""" TODO: Write tests for \@ features
 :"""" TODO: Write more tests for groups, and submatches
 
 :"""" Debugging tests
-:call add(tl, ['\v((ab)+|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
-:call add(tl, ['\v(a*)+', 'aaaa', 'aaaa', ''])
 
 
 :"

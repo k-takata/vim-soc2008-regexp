@@ -8,11 +8,11 @@ VIMPROG = ../vim-new/src/vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
-#VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
+# VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
 
 SCRIPTS = 	regexptest.out test24.out test36.out test43.out \
-			test46.out test64.out \
-			test44.out
+			test46.out test64.out test44.out test53.out test57.out
+#			test49.out
 
 SCRIPTS_GUI = test16.out
 
@@ -24,7 +24,7 @@ new: nolog regexptest.out
 	@echo
 	@cat test.log
 
-64: nolog test64.out
+24: nolog test24.out
 	@echo
 	@cat test.log
 
