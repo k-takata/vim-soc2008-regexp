@@ -366,7 +366,7 @@ nfa_regatom()
 			}
 #endif
 #ifdef DEBUG
-	EMSG3("NFA: Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
+//	EMSG3("NFA: Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
 #endif
 			EMIT(nfa_classcodes[p - classchars] + extra);
 			break;
@@ -588,6 +588,7 @@ nfa_regatom()
 			    if (startc >= 256)
 				EMSG_RET_FAIL("NFA regexp: Multibyte characters are not yet supported");
 			    
+			    /* Previous char was '-', so this char is end of range. Emit the range */
 			    if (emit_range)
 			    {
 				endc = startc; startc = oldstartc;
@@ -605,6 +606,7 @@ nfa_regatom()
 				emit_range = FALSE;
 			    }
 			    else
+			    /* This char (startc) is not part of a range. Just emit it. */
 			    {
 				EMIT(startc);
 				if (first == FALSE)
@@ -1709,6 +1711,7 @@ nfa_regmatch(start, submatch)
     int		reginput_updated = FALSE;
     Thread	*t;
     List	*thislist, *nextlist;
+    char_u	*cc;
 
     static 	regsub_T m;
     c = -1;
@@ -1759,6 +1762,7 @@ again:
 	}
 	if (c == NUL)
 	    n = 0;
+	cc = (char_u*)&c;
 
 	/* swap lists */
 	thislist = &list[flag];
@@ -1903,12 +1907,12 @@ again:
 		break;
 
 	    case NFA_KWORD:
-		if (vim_iswordp(&c))
+		if (vim_iswordp(cc))
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
 	    case NFA_SKWORD:
-		if (!VIM_ISDIGIT(c) && vim_iswordp(&c))
+		if (!VIM_ISDIGIT(c) && vim_iswordp(cc))
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
@@ -1923,12 +1927,12 @@ again:
 		break;
 
 	    case NFA_PRINT:
-		if (ptr2cells(&c) == 1)
+		if (ptr2cells(cc) == 1)
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
 	    case NFA_SPRINT:
-		if (!VIM_ISDIGIT(c) && ptr2cells(&c) == 1)
+		if (!VIM_ISDIGIT(c) && ptr2cells(cc) == 1)
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
