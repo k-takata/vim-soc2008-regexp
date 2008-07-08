@@ -42,6 +42,8 @@
 
 
 //#undef DEBUG
+#define BT_REGEXP_VERBOSE	    /* show/save debugging data when BT engine is used */
+#define BT_REGEXP_LOG		    /* save the data to a file instead of displaying it */
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -6120,9 +6122,19 @@ regdump(pattern, r)
     int	    op = EXACTLY;	/* Arbitrary non-END op. */
     char_u  *next;
     char_u  *end = NULL;
+    FILE    *f;
 
+#ifndef BT_REGEXP_VERBOSE
     return;
-    printf("\r\nregcomp(%s):\r\n", pattern);
+#endif
+#ifdef BT_REGEXP_LOG
+    f = fopen("bt_regexp_log.log","a");
+#else
+    f = stdout;
+#endif
+    if (f == NULL)
+	return;
+    fprintf(f, "\r\nregcomp(%s):\r\n", pattern);
 
     s = r->program + 1;
     /*
@@ -6132,18 +6144,18 @@ regdump(pattern, r)
     while (op != END || s <= end)
     {
 	op = OP(s);
-	printf("%2d%s", (int)(s - r->program), regprop(s)); /* Where, what. */
+	fprintf(f, "%2d%s", (int)(s - r->program), regprop(s)); /* Where, what. */
 	next = regnext(s);
 	if (next == NULL)	/* Next ptr. */
-	    printf("(0)");
+	    fprintf(f, "(0)");
 	else
-	    printf("(%d)", (int)((s - r->program) + (next - s)));
+	    fprintf(f, "(%d)", (int)((s - r->program) + (next - s)));
 	if (end < next)
 	    end = next;
 	if (op == BRACE_LIMITS)
 	{
 	    /* Two short ints */
-	    printf(" minval %ld, maxval %ld", OPERAND_MIN(s), OPERAND_MAX(s));
+	    fprintf(f, " minval %ld, maxval %ld", OPERAND_MIN(s), OPERAND_MAX(s));
 	    s += 8;
 	}
 	s += 3;
@@ -6152,23 +6164,26 @@ regdump(pattern, r)
 		|| op == EXACTLY)
 	{
 	    /* Literal string, where present. */
+	    fprintf(f, "xxxxxxxxx\n");
 	    while (*s != NUL)
-		printf("%c", *s++);
+		fprintf(f, "%c", *s++);
+	    fprintf(f, "\nxxxxxxxxx\n");
 	    s++;
 	}
-	printf("\r\n");
+	fprintf(f, "\r\n");
     }
 
     /* Header fields of interest. */
     if (r->regstart != NUL)
-	printf("start `%s' 0x%x; ", r->regstart < 256
+	fprintf(f, "start `%s' 0x%x; ", r->regstart < 256
 		? (char *)transchar(r->regstart)
 		: "multibyte", r->regstart);
     if (r->reganch)
-	printf("anchored; ");
+	fprintf(f, "anchored; ");
     if (r->regmust != NULL)
-	printf("must have \"%s\"", r->regmust);
-    printf("\r\n");
+	fprintf(f, "must have \"%s\"", r->regmust);
+    fprintf(f, "\r\n");
+    fclose(f);
 }
 
 /*

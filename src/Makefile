@@ -519,7 +519,7 @@ CONF_OPT_FEAT = --with-features=huge
 
 # Often used for GCC: mixed optimizing, lot of optimizing, debugging
 #CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
-CFLAGS = -g -fno-strength-reduce -Wall -Wmissing-prototypes -DDEBUG
+CFLAGS = -g -fno-strength-reduce -Wall -Wmissing-prototypes -DDEBUG -O6
 #CFLAGS = -g -Wall -Wmissing-prototypes
 #CFLAGS = -O6 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
 #CFLAGS = -g -DDEBUG -Wall -Wshadow -Wmissing-prototypes
@@ -2214,6 +2214,7 @@ menu: ./vim ../runtime/makemenu.vim
 scrub scratch:
 	-rm -f auto/config.status auto/config.cache config.log auto/config.log
 	-rm -f auto/config.h auto/link.log auto/link.sed auto/config.mk
+	-rm -f *.log
 	touch auto/config.h
 	cp config.mk.dist auto/config.mk
 

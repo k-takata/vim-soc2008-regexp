@@ -4,7 +4,7 @@
 
 
 //#define DISABLE_CHAR_RANGE	/* Comment this to disable the NFA implementation of  [ ] */
-#define DISABLE_LOG_FILE	/* Comment this to disable log files. They can get pretty big */
+//#define DISABLE_LOG_FILE	/* Comment this to disable log files. They can get pretty big */
 
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -426,8 +426,8 @@ nfa_regatom()
 		     * [^abc] expands to 'a NFA_NOT b NFA_NOT c NFA_NOT' (in postfix notation)	*/
 		    glue = NFA_OR;
 		    p = regparse;
-		    endp = skip_anyof(p);		/* Skip over [] */
-		    if (*endp == ']')			/* there is a matching ']', so no syntax error */
+		    endp = skip_anyof(p);
+		    if (*endp == ']')
 		    {
 			first = TRUE;		/* Emitting first atom in this sequence? */
 			if (*regparse == '^') 			/* negated range */
@@ -567,11 +567,6 @@ nfa_regatom()
 				{
 				    startc = coll_get_char();
 				    regparse--;
-				    if (startc == 0)
-				    {
-					startc = 0x0a;		/* revert to backslash in case of no number after \x */
-					regparse++;
-				    }
 				}
 				else
 				{
