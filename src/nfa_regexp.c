@@ -427,6 +427,8 @@ nfa_regatom()
 		      return FAIL;
 
 		case Magic('['):
+		    /* TODO(RE): Current implementation fails tests 51,58,59 */
+//		    return FAIL;
 		    p = regparse;
 		    endp = skip_anyof(p);		/* Skip over [] */
 		    if (*endp == ']')			/* there is a matching ']', so no syntax error */
@@ -571,9 +573,11 @@ nfa_regatom()
 				    || *regparse == 'x')
 				{
 				    startc = coll_get_char();
+				    regparse--;
 				    if (startc == 0)
 				    {
-					startc = 0x0a;		/* revert to slash in case of no number after \x */
+					startc = 0x0a;		/* revert to backslash in case of no number after \x */
+					regparse++;
 				    }
 				}
 				else
@@ -1495,8 +1499,8 @@ addstate(l, state, m, off, lid, match)
 	|| (state->c == NFA_MATCH) || (state->c == NFA_BOW) || (state->c == NFA_EOW)
 	|| (state->c == NFA_ANY) || (state->c == NFA_BOL) || (state->c == NFA_EOL)
 	|| (state->c == NFA_NEWL)
-	|| (state->c >= NFA_CLASS_ALPHA && state->c <= NFA_CLASS_ESCAPE)
-	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)
+	|| (state->c >= NFA_CLASS_ALPHA && state->c <= NFA_CLASS_ESCAPE)	/* [:alpha:] */
+	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
 	)
     {	
 	if (state->lastlist == lid)
@@ -1791,6 +1795,12 @@ again:
 	    case NFA_MATCH:
 		match = TRUE;
 		*submatch = t->sub;
+#ifdef DEBUG
+    fprintf(f, "\n");
+    for (i = 0; i< NSUBEXP; i++)
+        fprintf(f, " MATCH from line %ld, col %u, to line %ld, col %u \n", submatch->startpos[i].lnum, submatch->startpos[i].col, submatch->endpos[i].lnum, submatch->endpos[i].col);
+    fprintf(f, "\n");
+#endif
 		goto nextchar;
 
 	    case NFA_BOL:
@@ -1889,11 +1899,14 @@ again:
 	    case NFA_CLASS_ESCAPE:
 		if (check_char_class(t->state->c, c) == OK)
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
 
 /* Character classes like \a for alpha, \d for digit etc */
 
-	    case NFA_ANY:
-		addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_ANY:	    
+		/* Any printable char, not just any char. '\0' (end of input) must not match */
+		if (c > 0)
+		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
 	    case NFA_IDENT:
@@ -2029,10 +2042,14 @@ again:
 
 
 	    default:	/* regular character */
-		if (t->state->c == c)
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
-		else if (ireg_ic && MB_TOLOWER(t->state->c) == MB_TOLOWER(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		if ((t->state->c == c) || (ireg_ic && MB_TOLOWER(t->state->c) == MB_TOLOWER(c)))
+		{
+		/*
+		    if (t->state->out != NULL && t->state->out->c == NFA_MCLOSE + 0)
+			addstate(thislist, t->state->out, &t->sub, n, listid+1, &match);
+		    else    */
+			addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		}
 		break;
 	    }
 

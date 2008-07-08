@@ -6120,7 +6120,7 @@ regdump(pattern, r)
     char_u  *next;
     char_u  *end = NULL;
 
-    return;
+//    return;
     printf("\r\nregcomp(%s):\r\n", pattern);
 
     s = r->program + 1;
