@@ -3,15 +3,21 @@
 /* File nfa_regexp.c is included automa[gt]ically in regexp.c, at the end. */
 
 
+//#define DISABLE_CHAR_RANGE	/* Comment this to disable the NFA implementation of  [ ] */
+#define DISABLE_LOG_FILE	/* Comment this to disable log files. They can get pretty big */
+
+
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
 #define	    NFA_BRACES_MAXLIMIT	    10	    
 /* For allocating space for the postfix representation */
 #define	    NFA_POSTFIX_MULTIPLIER    (NFA_BRACES_MAXLIMIT+2)*2	    
 
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
 static void nfa_postfix_dump __ARGS((char_u *expr, int retval));
 static void nfa_dump __ARGS((nfa_regprog_T *prog));
 FILE	    *f;
+#endif
 #endif
 
 /* Global variable, set during compilation of a regexp, when an error is encountered. 
@@ -33,23 +39,6 @@ static int nstate_max;	/* Upper bound of estimated number of states. */
 static int nfa_just_found_braces = FALSE;  
 static int nfa_gate_offset = 0;
 
-
-/* Given a regexp, return how many \{} operators are present.
-* Note that syntax check will be done at a later stage, during compilation. This will only give an upper bound.
-*/
-/*
-static int
-nfa_count_repetitions(expr)
-		char_u	*expr;
-{
-char_u *p;
-int count = 0;
-	for (p = expr; *p; p++)
-// 		if (*p == '{')
-			count++;
-	return count;
-}
-*/
 
 /* helper fuctions used when doing re2post() parsing */
 #define EMIT(c)	do {				\
@@ -263,6 +252,7 @@ nfa_regatom()
     int		startc = -1, endc = -1, oldstartc = -1;
     int		cpo_lit;	/* 'cpoptions' contains 'l' flag */
     int		cpo_bsl;	/* 'cpoptions' contains '\' flag */
+    int		glue;
 
     cpo_lit = vim_strchr(p_cpo, CPO_LITERAL) != NULL;
     cpo_bsl = vim_strchr(p_cpo, CPO_BACKSL) != NULL;
@@ -428,22 +418,25 @@ nfa_regatom()
 
 		case Magic('['):
 		    /* TODO(RE): Current implementation fails tests 51,58,59 */
-//		    return FAIL;
+#ifdef DISABLE_CHAR_RANGE
+		    return FAIL;
+#endif
+		    /* Glue is emitted between several atoms from the []. It is either NFA_OR, or NFA_NOT. 
+		     * [abc] expands to 'a b NFAOR c NFA_OR' (in postfix notation)
+		     * [^abc] expands to 'a NFA_NOT b NFA_NOT c NFA_NOT' (in postfix notation)	*/
+		    glue = NFA_OR;
 		    p = regparse;
 		    endp = skip_anyof(p);		/* Skip over [] */
 		    if (*endp == ']')			/* there is a matching ']', so no syntax error */
 		    {
+			first = TRUE;		/* Emitting first atom in this sequence? */
 			if (*regparse == '^') 			/* negated range */
 			{
-#ifdef DEBUG
-			    EMSG_RET_FAIL("NFA regexp: ^ is not yet supported in NFA");
-#endif
-			    /* not supported yet */
+			    glue = NFA_NOT;
+			    first = FALSE;	/* glue needs to be emmited after every atom */ 
+			    return FAIL;	/* doesn't work yet */
 			}
-
-
 			/* Emit the OR branches for each character in the [] */
-			first = TRUE;		/* Emitting first atom in this sequence? */
 			startc = endc = oldstartc = -1;
 			emit_range = FALSE;
 			while (regparse < endp)
@@ -517,7 +510,7 @@ nfa_regatom()
 					    break;
 				    }
 				    if (first == FALSE)
-					EMIT(NFA_OR);
+					EMIT(glue);
 				    else
 					first = FALSE;
 				    continue;
@@ -527,7 +520,7 @@ nfa_regatom()
 				{
 				    nfa_emit_equi_class(equiclass);
 				    if (first == FALSE)
-					EMIT(NFA_OR);
+					EMIT(glue);
 				    else
 					first = FALSE;
 				    continue;
@@ -603,7 +596,7 @@ nfa_regatom()
 				{
 				    EMIT(c);
 				    if (first == FALSE)
-					EMIT(NFA_OR);
+					EMIT(glue);
 				    else    
 					first = FALSE;
 				}
@@ -614,7 +607,7 @@ nfa_regatom()
 			    {
 				EMIT(startc);
 				if (first == FALSE)
-				    EMIT(NFA_OR);
+				    EMIT(glue);
 				else
 				    first = FALSE;
 			    }
@@ -976,6 +969,7 @@ typedef struct
 } regsub_T;
 
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
 static char code[50]; 
 static FILE *debugf;
 static void nfa_set_code(int c)
@@ -1128,6 +1122,7 @@ static void nfa_dump(nfa_regprog_T *prog)
     }
 }
 #endif
+#endif
 
 /*
  * Parse r.e. @expr and convert it into postfix form.
@@ -1177,6 +1172,7 @@ new_state(c, out, out1)
     s->lastlist = 0;
     s->lastthread = NULL;
     s->visits = 0;
+    s->negated = FALSE;
 
     return s;
 }
@@ -1319,6 +1315,15 @@ post2nfa(postfix)
 	    PUSH(frag(e1.start, e2.out));
 	    break;
 
+	case NFA_NOT:		/* Negation of a character */
+	    if (nfa_calc_size == TRUE)
+	    {
+		nstate += 0;
+		break;
+	    }
+	    /* Already handled when creating the state with the character (case default below) */
+	    break;
+
 	case NFA_OR:		/* Alternation */
 	    if (nfa_calc_size == TRUE)
 	    {
@@ -1433,6 +1438,8 @@ post2nfa(postfix)
 	    s = new_state(*p, NULL, NULL);
     	    if (s == NULL)
     	        return NULL;
+	    if (*(p+1) && (*(p+1) == NFA_NOT))
+		s->negated = TRUE;
     	    PUSH(frag(s, list1(&s->out)));
     	    break;
 	} /* switch(*p) */
@@ -1517,8 +1524,10 @@ addstate(l, state, m, off, lid, match)
 	}
     }
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     nfa_set_code(state->c);
     fprintf(f, "> Adding state %d to list %d. Character %s, code %d\n", state->id, lid, code, state->c);
+#endif
 #endif
     switch (state->c)
     {
@@ -1739,10 +1748,12 @@ nfa_regmatch(start, submatch)
     listid = 1;
 
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     f = fopen("log_nfarun.log","a");
     fprintf(f, "\n\n\n\n\n\n=======================================================\n");
     fprintf(f, "=======================================================\n\n\n\n\n\n\n");
     nfa_print_state(f, start, 0);
+#endif
 #endif
 
     thislist = &list[0];
@@ -1774,6 +1785,7 @@ again:
 	nextlist->n = 0;	    /* `clear' nextlist */
 	++listid;
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     fprintf(f, "------------------------------------------\n");
     fprintf(f, ">>> Advanced one character ... Current char is %c (code %d) \n", c, (int)c);
     fprintf(f, ">>> Thislist has %d states available: ", thislist->n);
@@ -1781,14 +1793,17 @@ again:
 	fprintf(f, "%d  ", abs(thislist->t[i].state->id));
     fprintf(f, "\n");
 #endif
+#endif
 
 	/* compute nextlist */
 	for (i = 0; i < thislist->n; ++i)
 	{
 	    t = &thislist->t[i];
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     nfa_set_code(t->state->c);
     fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id), code, (int)t->state->c);
+#endif
 #endif
 	    switch (t->state->c)
 	    {
@@ -1796,10 +1811,12 @@ again:
 		match = TRUE;
 		*submatch = t->sub;
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     fprintf(f, "\n");
     for (i = 0; i< NSUBEXP; i++)
         fprintf(f, " MATCH from line %ld, col %u, to line %ld, col %u \n", submatch->startpos[i].lnum, submatch->startpos[i].col, submatch->endpos[i].lnum, submatch->endpos[i].col);
     fprintf(f, "\n");
+#endif
 #endif
 		goto nextchar;
 
@@ -2074,7 +2091,9 @@ nextchar:
     } while (c);
 
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     fclose(f);
+#endif
 #endif
 
     return match;
@@ -2265,12 +2284,14 @@ nfa_regcomp(expr, re_flags)
      * 2. second to emit code 
      */
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     FILE *f = fopen("log_nfarun.log", "a");
     if (f)
     {
 	fprintf(f, "\n***************\n\n\n\nCompiling regexp \"%s\" ... hold on !\n\n\n", expr);
 	fclose(f);
     }
+#endif
 #endif
 
     /* PASS 1 
@@ -2293,8 +2314,10 @@ nfa_regcomp(expr, re_flags)
     prog->engine = &nfa_regengine;
     prog->nstate = nstate;
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     nfa_postfix_dump(expr, OK);
     nfa_dump(prog);
+#endif
 #endif
 	
 out:
@@ -2307,7 +2330,9 @@ fail:
     vim_free(prog);
     prog = NULL;
 #ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
     nfa_postfix_dump(expr, FAIL);
+#endif
 #endif
     goto out;
 }

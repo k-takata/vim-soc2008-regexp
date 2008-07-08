@@ -247,6 +247,7 @@ NFA_JOIN_BRANCHES,
     NFA_PLUS,
     NFA_QUEST,
     NFA_QUEST_NONGREEDY,
+    NFA_NOT,	    /* used for [^ab] negated char ranges */
 
     NFA_BOL,
     NFA_EOL,
@@ -6120,7 +6121,7 @@ regdump(pattern, r)
     char_u  *next;
     char_u  *end = NULL;
 
-//    return;
+    return;
     printf("\r\nregcomp(%s):\r\n", pattern);
 
     s = r->program + 1;

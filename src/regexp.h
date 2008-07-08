@@ -73,6 +73,7 @@ struct nfa_state
     int			lastlist;
     int			visits;
     Thread		*lastthread;
+    int			negated;
 };
 
 /*
