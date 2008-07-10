@@ -6193,240 +6193,240 @@ regdump(pattern, r)
 regprop(op)
     char_u	   *op;
 {
-    char	    *p;
-    static char   buf[50];
+    char_u	    *p;
+    static char_u   buf[50];
 
     (void) STRCPY(buf, ":");
 
     switch ((int) OP(op))
     {
       case BOL:
-	p = "BOL";
+	p = (char_u *)"BOL";
 	break;
       case EOL:
-	p = "EOL";
+	p = (char_u *)"EOL";
 	break;
       case RE_BOF:
-	p = "BOF";
+	p = (char_u *)"BOF";
 	break;
       case RE_EOF:
-	p = "EOF";
+	p = (char_u *)"EOF";
 	break;
       case CURSOR:
-	p = "CURSOR";
+	p = (char_u *)"CURSOR";
 	break;
       case RE_VISUAL:
-	p = "RE_VISUAL";
+	p = (char_u *)"RE_VISUAL";
 	break;
       case RE_LNUM:
-	p = "RE_LNUM";
+	p = (char_u *)"RE_LNUM";
 	break;
       case RE_MARK:
-	p = "RE_MARK";
+	p = (char_u *)"RE_MARK";
 	break;
       case RE_COL:
-	p = "RE_COL";
+	p = (char_u *)"RE_COL";
 	break;
       case RE_VCOL:
-	p = "RE_VCOL";
+	p = (char_u *)"RE_VCOL";
 	break;
       case BOW:
-	p = "BOW";
+	p = (char_u *)"BOW";
 	break;
       case EOW:
-	p = "EOW";
+	p = (char_u *)"EOW";
 	break;
       case ANY:
-	p = "ANY";
+	p = (char_u *)"ANY";
 	break;
       case ANY + ADD_NL:
-	p = "ANY+NL";
+	p = (char_u *)"ANY+NL";
 	break;
       case ANYOF:
-	p = "ANYOF";
+	p = (char_u *)"ANYOF";
 	break;
       case ANYOF + ADD_NL:
-	p = "ANYOF+NL";
+	p = (char_u *)"ANYOF+NL";
 	break;
       case ANYBUT:
-	p = "ANYBUT";
+	p = (char_u *)"ANYBUT";
 	break;
       case ANYBUT + ADD_NL:
-	p = "ANYBUT+NL";
+	p = (char_u *)"ANYBUT+NL";
 	break;
       case IDENT:
-	p = "IDENT";
+	p = (char_u *)"IDENT";
 	break;
       case IDENT + ADD_NL:
-	p = "IDENT+NL";
+	p = (char_u *)"IDENT+NL";
 	break;
       case SIDENT:
-	p = "SIDENT";
+	p = (char_u *)"SIDENT";
 	break;
       case SIDENT + ADD_NL:
-	p = "SIDENT+NL";
+	p = (char_u *)"SIDENT+NL";
 	break;
       case KWORD:
-	p = "KWORD";
+	p = (char_u *)"KWORD";
 	break;
       case KWORD + ADD_NL:
-	p = "KWORD+NL";
+	p = (char_u *)"KWORD+NL";
 	break;
       case SKWORD:
-	p = "SKWORD";
+	p = (char_u *)"SKWORD";
 	break;
       case SKWORD + ADD_NL:
-	p = "SKWORD+NL";
+	p = (char_u *)"SKWORD+NL";
 	break;
       case FNAME:
-	p = "FNAME";
+	p = (char_u *)"FNAME";
 	break;
       case FNAME + ADD_NL:
-	p = "FNAME+NL";
+	p = (char_u *)"FNAME+NL";
 	break;
       case SFNAME:
-	p = "SFNAME";
+	p = (char_u *)"SFNAME";
 	break;
       case SFNAME + ADD_NL:
-	p = "SFNAME+NL";
+	p = (char_u *)"SFNAME+NL";
 	break;
       case PRINT:
-	p = "PRINT";
+	p = (char_u *)"PRINT";
 	break;
       case PRINT + ADD_NL:
-	p = "PRINT+NL";
+	p = (char_u *)"PRINT+NL";
 	break;
       case SPRINT:
-	p = "SPRINT";
+	p = (char_u *)"SPRINT";
 	break;
       case SPRINT + ADD_NL:
-	p = "SPRINT+NL";
+	p = (char_u *)"SPRINT+NL";
 	break;
       case WHITE:
-	p = "WHITE";
+	p = (char_u *)"WHITE";
 	break;
       case WHITE + ADD_NL:
-	p = "WHITE+NL";
+	p = (char_u *)"WHITE+NL";
 	break;
       case NWHITE:
-	p = "NWHITE";
+	p = (char_u *)"NWHITE";
 	break;
       case NWHITE + ADD_NL:
-	p = "NWHITE+NL";
+	p = (char_u *)"NWHITE+NL";
 	break;
       case DIGIT:
-	p = "DIGIT";
+	p = (char_u *)"DIGIT";
 	break;
       case DIGIT + ADD_NL:
-	p = "DIGIT+NL";
+	p = (char_u *)"DIGIT+NL";
 	break;
       case NDIGIT:
-	p = "NDIGIT";
+	p = (char_u *)"NDIGIT";
 	break;
       case NDIGIT + ADD_NL:
-	p = "NDIGIT+NL";
+	p = (char_u *)"NDIGIT+NL";
 	break;
       case HEX:
-	p = "HEX";
+	p = (char_u *)"HEX";
 	break;
       case HEX + ADD_NL:
-	p = "HEX+NL";
+	p = (char_u *)"HEX+NL";
 	break;
       case NHEX:
-	p = "NHEX";
+	p = (char_u *)"NHEX";
 	break;
       case NHEX + ADD_NL:
-	p = "NHEX+NL";
+	p = (char_u *)"NHEX+NL";
 	break;
       case OCTAL:
-	p = "OCTAL";
+	p = (char_u *)"OCTAL";
 	break;
       case OCTAL + ADD_NL:
-	p = "OCTAL+NL";
+	p = (char_u *)"OCTAL+NL";
 	break;
       case NOCTAL:
-	p = "NOCTAL";
+	p = (char_u *)"NOCTAL";
 	break;
       case NOCTAL + ADD_NL:
-	p = "NOCTAL+NL";
+	p = (char_u *)"NOCTAL+NL";
 	break;
       case WORD:
-	p = "WORD";
+	p = (char_u *)"WORD";
 	break;
       case WORD + ADD_NL:
-	p = "WORD+NL";
+	p = (char_u *)"WORD+NL";
 	break;
       case NWORD:
-	p = "NWORD";
+	p = (char_u *)"NWORD";
 	break;
       case NWORD + ADD_NL:
-	p = "NWORD+NL";
+	p = (char_u *)"NWORD+NL";
 	break;
       case HEAD:
-	p = "HEAD";
+	p = (char_u *)"HEAD";
 	break;
       case HEAD + ADD_NL:
-	p = "HEAD+NL";
+	p = (char_u *)"HEAD+NL";
 	break;
       case NHEAD:
-	p = "NHEAD";
+	p = (char_u *)"NHEAD";
 	break;
       case NHEAD + ADD_NL:
-	p = "NHEAD+NL";
+	p = (char_u *)"NHEAD+NL";
 	break;
       case ALPHA:
-	p = "ALPHA";
+	p = (char_u *)"ALPHA";
 	break;
       case ALPHA + ADD_NL:
-	p = "ALPHA+NL";
+	p = (char_u *)"ALPHA+NL";
 	break;
       case NALPHA:
-	p = "NALPHA";
+	p = (char_u *)"NALPHA";
 	break;
       case NALPHA + ADD_NL:
-	p = "NALPHA+NL";
+	p = (char_u *)"NALPHA+NL";
 	break;
       case LOWER:
-	p = "LOWER";
+	p = (char_u *)"LOWER";
 	break;
       case LOWER + ADD_NL:
-	p = "LOWER+NL";
+	p = (char_u *)"LOWER+NL";
 	break;
       case NLOWER:
-	p = "NLOWER";
+	p = (char_u *)"NLOWER";
 	break;
       case NLOWER + ADD_NL:
-	p = "NLOWER+NL";
+	p = (char_u *)"NLOWER+NL";
 	break;
       case UPPER:
-	p = "UPPER";
+	p = (char_u *)"UPPER";
 	break;
       case UPPER + ADD_NL:
-	p = "UPPER+NL";
+	p = (char_u *)"UPPER+NL";
 	break;
       case NUPPER:
-	p = "NUPPER";
+	p = (char_u *)"NUPPER";
 	break;
       case NUPPER + ADD_NL:
-	p = "NUPPER+NL";
+	p = (char_u *)"NUPPER+NL";
 	break;
       case BRANCH:
-	p = "BRANCH";
+	p = (char_u *)"BRANCH";
 	break;
       case EXACTLY:
-	p = "EXACTLY";
+	p = (char_u *)"EXACTLY";
 	break;
       case NOTHING:
-	p = "NOTHING";
+	p = (char_u *)"NOTHING";
 	break;
       case BACK:
-	p = "BACK";
+	p = (char_u *)"BACK";
 	break;
       case END:
-	p = "END";
+	p = (char_u *)"END";
 	break;
       case MOPEN + 0:
-	p = "MATCH START";
+	p = (char_u *)"MATCH START";
 	break;
       case MOPEN + 1:
       case MOPEN + 2:
@@ -6437,11 +6437,11 @@ regprop(op)
       case MOPEN + 7:
       case MOPEN + 8:
       case MOPEN + 9:
-	sprintf(buf + STRLEN(buf), "MOPEN%d", OP(op) - MOPEN);
+	sprintf((char *)buf + STRLEN(buf), "MOPEN%d", OP(op) - MOPEN);
 	p = NULL;
 	break;
       case MCLOSE + 0:
-	p = "MATCH END";
+	p = (char_u *)"MATCH END";
 	break;
       case MCLOSE + 1:
       case MCLOSE + 2:
@@ -6452,7 +6452,7 @@ regprop(op)
       case MCLOSE + 7:
       case MCLOSE + 8:
       case MCLOSE + 9:
-	sprintf(buf + STRLEN(buf), "MCLOSE%d", OP(op) - MCLOSE);
+	sprintf((char *)buf + STRLEN(buf), "MCLOSE%d", OP(op) - MCLOSE);
 	p = NULL;
 	break;
       case BACKREF + 1:
@@ -6464,14 +6464,14 @@ regprop(op)
       case BACKREF + 7:
       case BACKREF + 8:
       case BACKREF + 9:
-	sprintf(buf + STRLEN(buf), "BACKREF%d", OP(op) - BACKREF);
+	sprintf((char *)buf + STRLEN(buf), "BACKREF%d", OP(op) - BACKREF);
 	p = NULL;
 	break;
       case NOPEN:
-	p = "NOPEN";
+	p = (char_u *)"NOPEN";
 	break;
       case NCLOSE:
-	p = "NCLOSE";
+	p = (char_u *)"NCLOSE";
 	break;
 #ifdef FEAT_SYN_HL
       case ZOPEN + 1:
@@ -6483,7 +6483,7 @@ regprop(op)
       case ZOPEN + 7:
       case ZOPEN + 8:
       case ZOPEN + 9:
-	sprintf(buf + STRLEN(buf), "ZOPEN%d", OP(op) - ZOPEN);
+	sprintf((char *)buf + STRLEN(buf), "ZOPEN%d", OP(op) - ZOPEN);
 	p = NULL;
 	break;
       case ZCLOSE + 1:
@@ -6495,7 +6495,7 @@ regprop(op)
       case ZCLOSE + 7:
       case ZCLOSE + 8:
       case ZCLOSE + 9:
-	sprintf(buf + STRLEN(buf), "ZCLOSE%d", OP(op) - ZCLOSE);
+	sprintf((char *)buf + STRLEN(buf), "ZCLOSE%d", OP(op) - ZCLOSE);
 	p = NULL;
 	break;
       case ZREF + 1:
@@ -6507,36 +6507,36 @@ regprop(op)
       case ZREF + 7:
       case ZREF + 8:
       case ZREF + 9:
-	sprintf(buf + STRLEN(buf), "ZREF%d", OP(op) - ZREF);
+	sprintf((char *)buf + STRLEN(buf), "ZREF%d", OP(op) - ZREF);
 	p = NULL;
 	break;
 #endif
       case STAR:
-	p = "STAR";
+	p = (char_u *)"STAR";
 	break;
       case PLUS:
-	p = "PLUS";
+	p = (char_u *)"PLUS";
 	break;
       case NOMATCH:
-	p = "NOMATCH";
+	p = (char_u *)"NOMATCH";
 	break;
       case MATCH:
-	p = "MATCH";
+	p = (char_u *)"MATCH";
 	break;
       case BEHIND:
-	p = "BEHIND";
+	p = (char_u *)"BEHIND";
 	break;
       case NOBEHIND:
-	p = "NOBEHIND";
+	p = (char_u *)"NOBEHIND";
 	break;
       case SUBPAT:
-	p = "SUBPAT";
+	p = (char_u *)"SUBPAT";
 	break;
       case BRACE_LIMITS:
-	p = "BRACE_LIMITS";
+	p = (char_u *)"BRACE_LIMITS";
 	break;
       case BRACE_SIMPLE:
-	p = "BRACE_SIMPLE";
+	p = (char_u *)"BRACE_SIMPLE";
 	break;
       case BRACE_COMPLEX + 0:
       case BRACE_COMPLEX + 1:
@@ -6548,24 +6548,24 @@ regprop(op)
       case BRACE_COMPLEX + 7:
       case BRACE_COMPLEX + 8:
       case BRACE_COMPLEX + 9:
-	sprintf(buf + STRLEN(buf), "BRACE_COMPLEX%d", OP(op) - BRACE_COMPLEX);
+	sprintf((char *)buf + STRLEN(buf), "BRACE_COMPLEX%d", OP(op) - BRACE_COMPLEX);
 	p = NULL;
 	break;
 #ifdef FEAT_MBYTE
       case MULTIBYTECODE:
-	p = "MULTIBYTECODE";
+	p = (char_u *)"MULTIBYTECODE";
 	break;
 #endif
       case NEWL:
-	p = "NEWL";
+	p = (char_u *)"NEWL";
 	break;
       default:
-	sprintf(buf + STRLEN(buf), "corrupt %d", OP(op));
+	sprintf((char *)buf + STRLEN(buf), "corrupt %d", OP(op));
 	p = NULL;
 	break;
     }
     if (p != NULL)
-	(void) strcat(buf, p);
+	(void) STRCAT(buf, p);
     return (char_u *)buf;
 }
 #endif
@@ -7399,9 +7399,13 @@ static regengine_T bt_regengine =
 {
     bt_regcomp,
     bt_regexec,
+#if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
     bt_regexec_nl,
+#endif
     bt_regexec_multi,
 };
+
 
 static int regexp_engine;
 #define	    AUTOMATIC_ENGINE	0
@@ -7409,13 +7413,16 @@ static int regexp_engine;
 #define	    NFA_ENGINE		2
 
 
-#include "nfa_regexp.c"
+#include "regexp_nfa.c"
 
 static struct regengine nfa_regengine =
 {
     nfa_regcomp,
     nfa_regexec,
+#if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
     nfa_regexec_nl,
+#endif
     nfa_regexec_multi,
 };
 
@@ -7428,17 +7435,29 @@ vim_regcomp(expr, re_flags)
     char_u *expr;
     int re_flags;
 {
-    // First try the NFA engine
     regprog_T   *prog = NULL;
     syntax_error = FALSE;
-    if ((STRLEN(expr))>=5)
+    /* Check for prefix "\%#=", that sets the regexp engine */
+    if ((STRLEN(expr)) >= 5)
 	if (STRNCMP(expr, "\\%#=", 4) == 0)
 	{
-	    regexp_engine = expr[4] - '0';	/* either AUTOMATIC_ENGINE, BT_ENGINE, NFA_ENGINE */
-	    expr += 5;
-	    regparse += 5;
-	    EMSG2("New regexp mode selected: %d", regexp_engine);
+	    int newengine = expr[4] - '0';
+	    if (newengine == AUTOMATIC_ENGINE || newengine == BACKTRACKING_ENGINE 
+		|| newengine == NFA_ENGINE)
+	    {
+		regexp_engine = expr[4] - '0';
+		expr += 5;
+		regparse += 5;
+		EMSG2("New regexp mode selected: %d", regexp_engine);
+	    }
+	    else
+	    {
+		EMSG("\\%#= can only be followed by 0, 1, or 2. \
+		The automatic engine will be used ");
+		regexp_engine = AUTOMATIC_ENGINE;
+	    }
 	}
+    // First try the NFA engine
     if (regexp_engine != BACKTRACKING_ENGINE)
         prog = nfa_regengine.regcomp(expr, re_flags);
     else
@@ -7464,7 +7483,7 @@ vim_regcomp(expr, re_flags)
 	}
 #endif
 	/* If NFA engine failed, then revert to the backtracking engine. 
-	 * Exception: when there was a syntax error, which was properly handled by NFA engine */
+	 * Except when there was a syntax error, which was properly handled by NFA engine */
 	if (regexp_engine == AUTOMATIC_ENGINE)
 	    if (!syntax_error)
 		prog = bt_regengine.regcomp(expr, re_flags);

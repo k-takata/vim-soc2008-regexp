@@ -519,7 +519,7 @@ CONF_OPT_FEAT = --with-features=huge
 
 # Often used for GCC: mixed optimizing, lot of optimizing, debugging
 #CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
-CFLAGS = -g -fno-strength-reduce -Wall -Wmissing-prototypes -DDEBUG -O6
+CFLAGS = -g -fno-strength-reduce -Wall -Wmissing-prototypes -DDEBUG
 #CFLAGS = -g -Wall -Wmissing-prototypes
 #CFLAGS = -O6 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
 #CFLAGS = -g -DDEBUG -Wall -Wshadow -Wmissing-prototypes
@@ -1413,7 +1413,7 @@ ALL_SRC = $(BASIC_SRC) $(ALL_GUI_SRC) $(EXTRA_SRC)
 # The perl sources also don't work well with lint.
 LINT_SRC = $(BASIC_SRC) $(GUI_SRC) $(HANGULIN_SRC) $(PYTHON_SRC) $(TCL_SRC) \
 	$(SNIFF_SRC) $(WORKSHOP_SRC) $(WSDEBUG_SRC) $(NETBEANS_SRC)
-#LINT_SRC = $(SRC)
+LINT_SRC = $(SRC)
 #LINT_SRC = $(ALL_SRC)
 
 OBJ = \
@@ -2498,7 +2498,7 @@ objects/popupmnu.o: popupmnu.c
 objects/quickfix.o: quickfix.c
 	$(CCC) -o $@ quickfix.c
 
-objects/regexp.o: regexp.c nfa_regexp.c
+objects/regexp.o: regexp.c regexp_nfa.c
 	$(CCC) -o $@ regexp.c 
 
 objects/screen.o: screen.c
@@ -2765,7 +2765,7 @@ objects/quickfix.o: quickfix.c vim.h auto/config.h feature.h os_unix.h \
   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
   globals.h farsi.h arabic.h
-objects/regexp.o: regexp.c nfa_regexp.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
+objects/regexp.o: regexp.c regexp_nfa.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
   arabic.h

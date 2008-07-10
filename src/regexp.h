@@ -29,7 +29,7 @@
 
 typedef struct regengine regengine_T;
 
-typedef struct thread Thread;
+typedef struct thread thread_T;
 /*
  * Structure returned by vim_regcomp() to pass on to vim_regexec().
  * This is the general structure. For the actual matcher, two specific
@@ -72,7 +72,7 @@ struct nfa_state
     int			id;
     int			lastlist;
     int			visits;
-    Thread		*lastthread;
+    thread_T		*lastthread;
     int			negated;
 };
 
@@ -135,7 +135,10 @@ struct regengine
 {
     regprog_T		*(*regcomp)(char_u*, int);
     int         	(*regexec)(regmatch_T*, char_u*, colnr_T);
+#if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
     int         	(*regexec_nl)(regmatch_T*, char_u*, colnr_T);
+#endif
     long        	(*regexec_multi)(regmmatch_T*, win_T*, buf_T*, linenr_T, colnr_T, proftime_T*);
 };
 

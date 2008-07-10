@@ -4,13 +4,15 @@
 
 
 //#define DISABLE_CHAR_RANGE	/* Comment this to disable the NFA implementation of  [ ] */
-//#define DISABLE_LOG_FILE	/* Comment this to disable log files. They can get pretty big */
+#define DISABLE_LOG_FILE	/* Comment this to enable log files. They can get pretty big */
 
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
-#define	    NFA_BRACES_MAXLIMIT	    10	    
+#define	    NFA_BRACES_MAXLIMIT		    10	    
 /* For allocating space for the postfix representation */
-#define	    NFA_POSTFIX_MULTIPLIER    (NFA_BRACES_MAXLIMIT+2)*2	    
+#define	    NFA_POSTFIX_MULTIPLIER	    (NFA_BRACES_MAXLIMIT+2)*2	    
+/* Size of stack, used when converting the postfix regexp into NFA */
+#define	    NFA_STACK_SIZE		    1024
 
 #ifdef DEBUG
 #ifndef DISABLE_LOG_FILE
@@ -24,8 +26,6 @@ FILE	    *f;
  * If TRUE, we revert to the backtracking engine. If false, then the error 
  * should have been handled by the NFA engine. Syntax errors are handled by NFA engine. */
 static int syntax_error = FALSE;
-static int nfa_calc_size = FALSE;
-static int nfa_paren_offset = 0;
 
 static int *post_start;  /* holds the postfix form of r.e. */
 static int *post_end;
@@ -37,7 +37,6 @@ static int istate;	/* Index in the state vector, used in new_state */
 static int nstate_max;	/* Upper bound of estimated number of states. */
 
 static int nfa_just_found_braces = FALSE;  
-static int nfa_gate_offset = 0;
 
 
 /* helper fuctions used when doing re2post() parsing */
@@ -60,8 +59,6 @@ nfa_regcomp_start(expr, re_flags)
 
     nstate	= 0;
     istate	= 0;
-    nfa_gate_offset = 0;
-    nfa_paren_offset = 0;
     nstate_max	= (STRLEN(expr) + 1) * NFA_POSTFIX_MULTIPLIER; /* A reasonable estimation. */
 
     postfix_size = sizeof(*post_start) * nstate_max;	/* Size for postfix representation of expr */
@@ -260,8 +257,10 @@ nfa_regatom()
     c = getchr();
     /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
      * Fail and revert to old engine */
+#ifdef FEAT_MBYTE
     if ((*mb_char2len)(c)>1)
         return FAIL;	    /* unsupported for now */
+#endif
     switch (c)
     {
 	  case Magic('^'):
@@ -356,7 +355,7 @@ nfa_regatom()
 			}
 #endif
 #ifdef DEBUG
-//	EMSG3("NFA: Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
+//	EMSG3("E999: (NFA) Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
 #endif
 			EMIT(nfa_classcodes[p - classchars] + extra);
 			break;
@@ -383,7 +382,7 @@ nfa_regatom()
 		case Magic('&'):
 		case Magic(')'):
 			syntax_error = TRUE;
-			EMSG_RET_FAIL("NFA regexp: Misplaced closing ')' ");
+			EMSG_RET_FAIL("E999: (NFA regexp) Misplaced closing ')' ");
 
 		case Magic('='):
 		case Magic('?'):
@@ -393,7 +392,7 @@ nfa_regatom()
 		case Magic('{'):
 			/* these should follow an atom, not form an atom */
 			syntax_error = TRUE;
-			EMSG_RET_FAIL("NFA regexp: Misplaced =?+@*{");
+			EMSG_RET_FAIL("E999: (NFA regexp) Misplaced =?+@*{");
 
 		case Magic('~'):		/* previous substitute pattern */
 			/* Not supported yet */
@@ -578,7 +577,7 @@ nfa_regatom()
 			    if (startc == -1)
 				startc = *regparse;
 			    if (startc >= 256)
-				EMSG_RET_FAIL("NFA regexp: Multibyte characters are not yet supported");
+				EMSG_RET_FAIL("E999: (NFA regexp) Multibyte characters are not yet supported");
 			    
 			    /* Previous char was '-', so this char is end of range. Emit the range */
 			    if (emit_range)
@@ -586,7 +585,7 @@ nfa_regatom()
 				endc = startc; startc = oldstartc;
 				if (startc > endc || startc + 256 < endc)
 				    EMSG_RET_FAIL(_(e_invrange));
-				/* Emit the range */
+				/* Emit the range. "startc" was already emmitted, so skip it. */
 				for (c = startc+1; c <= endc; c++)
 				{
 				    EMIT(c);
@@ -719,7 +718,7 @@ nfa_regpiece()
 	    if (!read_limits(&minval, &maxval))
 	    {
 		syntax_error = TRUE;
-		EMSG_RET_FAIL("NFA regexp: Error reading repetition limits");
+		EMSG_RET_FAIL("E999: (NFA regexp) Error reading repetition limits");
 	    }
 	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to <atom>*  */
 	    if (minval == 0 && maxval == MAX_LIMIT && greedy)	
@@ -776,7 +775,7 @@ nfa_regpiece()
     {
 	/* Can't have a multi follow a multi. */
 	syntax_error = TRUE;
-	EMSG_RET_FAIL("NFA regexp: Can't have a multi follow a multi !");
+	EMSG_RET_FAIL("E999: (NFA regexp) Can't have a multi follow a multi !");
     }
 
     return OK;
@@ -847,17 +846,10 @@ nfa_regconcat()
 	    default:
 		if (nfa_regpiece() == FAIL)
 		    return FAIL;
-		if (first == TRUE)
-		{   
-		    if (nfa_just_found_braces)
-		    {
-			syntax_error = TRUE;
-			EMSG_RET_FAIL("NFA regexp:  Can't begina regexp with repetition braces ");
-		    }
-		    first = FALSE;
-		}
-		else
+		if (first == FALSE)
 		    EMIT(NFA_CONCAT);
+		else
+		    first = FALSE;
 		break;
 	}
     }
@@ -914,9 +906,9 @@ nfa_reg(paren)
 	if (regnpar >= NSUBEXP) /* Too many `(' */
 	{
 	    syntax_error = TRUE;
-	    EMSG_RET_FAIL("NFA regexp: Too many '('");
+	    EMSG_RET_FAIL("E999: (NFA regexp) Too many '('");
 	}
-	parno = regnpar++ - nfa_paren_offset;
+	parno = regnpar++;
     }
 
     if (nfa_regbranch() == FAIL)
@@ -934,12 +926,12 @@ nfa_reg(paren)
     if (paren != REG_NOPAREN && getchr() != Magic(')'))
     {
 	syntax_error = TRUE;
-	EMSG_RET_FAIL("NFA regexp: Group is not properly terminated ");
+	EMSG_RET_FAIL("E999: (NFA regexp) Group is not properly terminated ");
     }
     else if (paren == REG_NOPAREN && peekchr() != NUL)
     {
 	syntax_error = TRUE;
-	EMSG_RET_FAIL("NFA regexp: proper termination error ");
+	EMSG_RET_FAIL("E999: (NFA regexp) proper termination error ");
     }
     /*
      * Here we set the flag allowing back references to this set of
@@ -1214,7 +1206,7 @@ list1(outp)
 {
     Ptrlist *l;
 
-    l = (Ptrlist*)outp;
+    l = (Ptrlist *)outp;
     l->next = NULL;
     return l;
 }
@@ -1236,7 +1228,7 @@ patch(l, s)
 
 
 /* Join the two lists l1 and l2, returning the combination. */
-    static Ptrlist*
+    static Ptrlist *
 append(l1, l2)
     Ptrlist *l1;
     Ptrlist *l2;
@@ -1253,39 +1245,63 @@ append(l1, l2)
 /*
  * Stack used for transforming postfix form into NFA.
  */
-static Frag stack[1024];
+static Frag *stack;
 
 /*
  * Convert a postfix form into its equivalent NFA.
  * Return the NFA start state on success, NULL otherwise.
  */
     static nfa_state_T *
-post2nfa(postfix)
+post2nfa(postfix, end, nfa_calc_size)
     int		*postfix;
+    int		*end;
+    int		nfa_calc_size;
 {
-    int		*p;
+    int		*p, st_error = FALSE;
     Frag	*stackp, *stack_end, e1, e2, e;
+//    Frag	empty;
     nfa_state_T	*s, *s1, *matchstate;
 
     if (postfix == NULL)
         return NULL;
 
-#define PUSH(s)	{			    \
-		    if (stackp >= stack_end)\
-			return NULL;	    \
-		     *stackp++ = s;	    \
-		}
+/* 
+ * The next definitions of PUSH and POP do not work as expected ...
+ *
+#define PUSH(s)						    \
+		if (stackp >= stack_end)		    \
+		    EMSG("E999: NFA Stack error: Could not Push!");\
+		else					    \
+		    *stackp++ = (s)
+	        
+#define POP()								\
+	*--stackp;							\
+	if (stackp <= stack)						\
+	    return NULL;						
 
-#define POP()	({			    \
-		    if (stackp <= stack)    \
-			return NULL;	    \
-		    *--stackp;		    \
-		 })
+*/
 
-    stackp = stack;
-    stack_end = stack + sizeof(stack);
+#define PUSH(s) {                           \
+                    if (stackp >= stack_end)\
+                        return NULL;        \
+                     *stackp++ = s;         \
+                }
+#define POP()   ({                          \
+                    if (stackp <= stack)    \
+                        return NULL;        \
+                    *--stackp;              \
+                 })
 
-    for (p = postfix; *p; ++p)
+    if (nfa_calc_size == FALSE)
+    {
+	/* Allocate space for the stack. Max states on the stack : nstate */
+	stack = (Frag *) lalloc((nstate+1)*sizeof(Frag), TRUE);
+	stackp = stack;
+	stack_end = stack + NFA_STACK_SIZE;
+//	empty = frag(NULL,NULL);
+    }
+
+    for (p = postfix; p < end && !st_error; ++p)
     {
 	switch (*p)
 	{
@@ -1316,7 +1332,8 @@ post2nfa(postfix)
 		nstate += 0;
 		break;
 	    }
-	    /* Already handled when creating the state with the character (case default below) */
+	    /* Already handled when creating the state with 
+	     * the character (case default below) */
 	    break;
 
 	case NFA_OR:		/* Alternation */
@@ -1387,7 +1404,9 @@ post2nfa(postfix)
 	    PUSH(frag(e.start, list1(&s->out1)));
 	    break;
 	
-	case NFA_SKIP_CHAR:	    /* Symbol of 0-length, Used in a repetition with max/min count of 0 */
+	/* Symbol of 0-length, Used in a repetition 
+	 * with max/min count of 0 */
+	case NFA_SKIP_CHAR:
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate ++;
@@ -1437,6 +1456,7 @@ post2nfa(postfix)
 		s->negated = TRUE;
     	    PUSH(frag(s, list1(&s->out)));
     	    break;
+	
 	} /* switch(*p) */
     } /* for(p = postfix; *p; ++p) */
 
@@ -1448,10 +1468,15 @@ post2nfa(postfix)
 
     e = POP();
     if (stackp != stack)
-	EMSG_RET_NULL("NFA regexp: (While converting from postfix to NFA), too many states left on stack ");
+	EMSG_RET_NULL("E999: (NFA regexp) (While converting from postfix to NFA), too many states left on stack ");
 
     if (istate >= nstate)
 	return NULL;
+
+    if (st_error == TRUE)
+	return NULL;
+
+    vim_free(stack);
 
     matchstate = &state_ptr[istate++]; /* the match state */
     matchstate->c = NFA_MATCH;
@@ -1463,7 +1488,7 @@ post2nfa(postfix)
 #undef PUSH
 }
 
-/* Thread contains runtime information of a NFA state */
+/* thread_T contains runtime information of a NFA state */
 struct thread
 {
     nfa_state_T	*state;
@@ -1472,7 +1497,7 @@ struct thread
 
 typedef struct
 {
-    Thread	*t;
+    thread_T	*t;
     int		n;
 } List;
 
@@ -1695,7 +1720,7 @@ static int check_char_class(class, c)
 	
 	default:
 	    /* should not be here :P */
-	    EMSG_RET_FAIL("NFA regexp: Invalid character class ");
+	    EMSG_RET_FAIL("E999: (NFA regexp) Invalid character class ");
     }
     return FAIL;
 }
@@ -1717,7 +1742,7 @@ nfa_regmatch(start, submatch)
     int		match = FALSE;
     int		flag = 0;
     int		reginput_updated = FALSE;
-    Thread	*t;
+    thread_T	*t;
     List	*thislist, *nextlist;
     char_u	*cc;
 
@@ -1772,7 +1797,7 @@ again:
 	}
 	if (c == NUL)
 	    n = 0;
-	cc = (char_u*)&c;
+	cc = (char_u *)&c;
 
 	/* swap lists */
 	thislist = &list[flag];
@@ -2170,14 +2195,14 @@ nfa_regexec_both(line, col)
 
     if (REG_MULTI)
     {
-	prog = (nfa_regprog_T*)reg_mmatch->regprog;
+	prog = (nfa_regprog_T *)reg_mmatch->regprog;
 	line = reg_getline((linenr_T)0);    /* relative to the cursor */
 	reg_startpos = reg_mmatch->startpos;
 	reg_endpos = reg_mmatch->endpos;
     }
     else
     {
-	prog = (nfa_regprog_T*)reg_match->regprog;
+	prog = (nfa_regprog_T *)reg_match->regprog;
 	reg_startp = reg_match->startp;
 	reg_endp = reg_match->endp;
     }
@@ -2210,10 +2235,10 @@ nfa_regexec_both(line, col)
 
     nstate = prog->nstate;
 
-    size = (nstate + 1) * sizeof(Thread);
+    size = (nstate + 1) * sizeof(thread_T);
 
-    list[0].t = (Thread *)lalloc(size, TRUE);
-    list[1].t = (Thread *)lalloc(size, TRUE);
+    list[0].t = (thread_T *)lalloc(size, TRUE);
+    list[1].t = (thread_T *)lalloc(size, TRUE);
     if (list[0].t == NULL || list[1].t == NULL)
 	goto theend;
 
@@ -2292,16 +2317,13 @@ nfa_regcomp(expr, re_flags)
     /* PASS 1 
      * Parse expression, count number of NFA states in "nstate". Do not build the NFA. 
      */
-    nfa_calc_size = TRUE;
-    post2nfa(postfix);
-    nfa_calc_size = FALSE;
-
+    post2nfa(postfix, post_ptr, TRUE);
     state_ptr = prog->state;
 
     /* PASS 2
      * Build the NFA 
      */
-    prog->start = post2nfa(postfix);
+    prog->start = post2nfa(postfix, post_ptr, FALSE);
     if (prog->start == NULL)
 	goto fail;
 
