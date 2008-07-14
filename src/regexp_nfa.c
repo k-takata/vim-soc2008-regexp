@@ -4,7 +4,7 @@
 
 
 //#define DISABLE_CHAR_RANGE	/* Comment this to disable the NFA implementation of  [ ] */
-#define DISABLE_LOG_FILE	/* Comment this to enable log files. They can get pretty big */
+//#define DISABLE_LOG_FILE	/* Comment this to enable log files. They can get pretty big */
 
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -245,7 +245,7 @@ nfa_regatom()
 {
     int		c, charclass, equiclass, collclass; 
     char_u	*p, *endp;
-    int		extra = 0, first, emit_range;
+    int		extra = 0, first, emit_range, negated;
     int		startc = -1, endc = -1, oldstartc = -1;
     int		cpo_lit;	/* 'cpoptions' contains 'l' flag */
     int		cpo_bsl;	/* 'cpoptions' contains '\' flag */
@@ -420,20 +420,44 @@ nfa_regatom()
 #ifdef DISABLE_CHAR_RANGE
 		    return FAIL;
 #endif
-		    /* Glue is emitted between several atoms from the []. It is either NFA_OR, or NFA_NOT. 
-		     * [abc] expands to 'a b NFAOR c NFA_OR' (in postfix notation)
-		     * [^abc] expands to 'a NFA_NOT b NFA_NOT c NFA_NOT' (in postfix notation)	*/
-		    glue = NFA_OR;
+		    /* 
+		     * Glue is emitted between several atoms from the []. 
+		     * It is either NFA_OR, or NFA_CONCAT. 
+		     *
+		     * [abc] expands to 'a b NFA_OR c NFA_OR' (in postfix notation)
+		     * [^abc] expands to 'a NFA_NOT b NFA_NOT NFA_CONCAT c NFA_NOT NFA_CONCAT
+		     *		NFA_END_NEG_RANGE NFA_CONCAT' (in postfix notation)	
+		     *
+		     */
+
+
+/* Emit negating atoms, if needed */
+#define TRY_NEG()		    \
+	    if (negated == TRUE)    \
+	    {			    \
+		EMIT(NFA_NOT);	    \
+		EMIT(NFA_CONCAT);   \
+	    }
+
+/* Emit glue between important nodes : CONCAT or OR */
+#define EMIT_GLUE()		    \
+	    if (first == FALSE)	    \
+		EMIT(glue);	    \
+	    else		    \
+		first = FALSE;	    
+
 		    p = regparse;
 		    endp = skip_anyof(p);
 		    if (*endp == ']')
 		    {
 			first = TRUE;		/* Emitting first atom in this sequence? */
+			negated = FALSE;
+			glue = NFA_OR;
 			if (*regparse == '^') 			/* negated range */
 			{
-			    glue = NFA_NOT;
-			    first = FALSE;	/* glue needs to be emmited after every atom */ 
-			    return FAIL;	/* doesn't work yet */
+			    negated = TRUE;
+			    glue = NFA_CONCAT;
+			    regparse++;
 			}
 			/* Emit the OR branches for each character in the [] */
 			startc = endc = oldstartc = -1;
@@ -508,20 +532,16 @@ nfa_regatom()
 					    EMIT(NFA_CLASS_ESCAPE);
 					    break;
 				    }
-				    if (first == FALSE)
-					EMIT(glue);
-				    else
-					first = FALSE;
+				    TRY_NEG();
+				    EMIT_GLUE();
 				    continue;
 				}
 				/* Try equivalence class [=a=] and the like */
 				if (equiclass != 0)
 				{
 				    nfa_emit_equi_class(equiclass);
-				    if (first == FALSE)
-					EMIT(glue);
-				    else
-					first = FALSE;
+				    TRY_NEG();
+				    EMIT_GLUE();
 				    continue;
 				}
 				/* Try collating class like [. .]  */
@@ -589,10 +609,8 @@ nfa_regatom()
 				for (c = startc+1; c <= endc; c++)
 				{
 				    EMIT(c);
-				    if (first == FALSE)
-					EMIT(glue);
-				    else    
-					first = FALSE;
+				    TRY_NEG();
+				    EMIT_GLUE();
 				}
 				emit_range = FALSE;
 			    }
@@ -600,16 +618,19 @@ nfa_regatom()
 			    /* This char (startc) is not part of a range. Just emit it. */
 			    {
 				EMIT(startc);
-				if (first == FALSE)
-				    EMIT(glue);
-				else
-				    first = FALSE;
+				TRY_NEG();
+				EMIT_GLUE();
 			    }
 
 			    regparse++;
 			}	    /* while (p < endp) */
 
 			regparse = endp+1;		/* skip the trailing ] */
+			if (negated == TRUE)
+			{
+			    EMIT(NFA_SKIP_CHAR);	/* Mark end of negated char range */
+			    EMIT(NFA_CONCAT);
+			}
 			return OK;
 		    }		/* if exists closing ] */
 		    else 
@@ -998,6 +1019,7 @@ static void nfa_set_code(int c)
 	case NFA_BOL: STRCPY(code, "NFA_BOL "); break;
 	case NFA_STAR: STRCPY(code, "NFA_STAR "); break;
 	case NFA_PLUS: STRCPY(code, "NFA_PLUS "); break;
+	case NFA_NOT:	STRCPY(code, "NFA_NOT "); break;
 	case NFA_SKIP_CHAR: STRCPY(code, "NFA_SKIP_CHAR"); break;
 	case NFA_OR: STRCPY(code, "NFA_OR"); break;
 	case NFA_QUEST:	STRCPY(code, "NFA_QUEST"); break;
@@ -1329,11 +1351,14 @@ post2nfa(postfix, end, nfa_calc_size)
 	case NFA_NOT:		/* Negation of a character */
 	    if (nfa_calc_size == TRUE)
 	    {
-		nstate += 0;
+		nstate += 1;
 		break;
 	    }
-	    /* Already handled when creating the state with 
-	     * the character (case default below) */
+	    /* Create state s for NFA_NOT */
+	    s = new_state(NFA_NOT, NULL, NULL);
+    	    if (s == NULL)
+    	        return NULL;
+    	    PUSH(frag(s, list1(&s->out)));
 	    break;
 
 	case NFA_OR:		/* Alternation */
@@ -1471,10 +1496,10 @@ post2nfa(postfix, end, nfa_calc_size)
 	EMSG_RET_NULL("E999: (NFA regexp) (While converting from postfix to NFA), too many states left on stack ");
 
     if (istate >= nstate)
-	return NULL;
+	EMSG_RET_NULL("E999: (NFA regexp) Not enough space to store the whole NFA ");
 
     if (st_error == TRUE)
-	return NULL;
+	EMSG_RET_NULL("E999: (NFA regexp) Error popping and pushing to/from the stack ");
 
     vim_free(stack);
 
@@ -1504,6 +1529,8 @@ typedef struct
 static List list[2];
 
 static int	listid;
+List	*thislist, *nextlist;
+
 
     static void
 addstate(l, state, m, off, lid, match)
@@ -1525,7 +1552,7 @@ addstate(l, state, m, off, lid, match)
 	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
 	|| (state->c == NFA_MATCH) || (state->c == NFA_BOW) || (state->c == NFA_EOW)
 	|| (state->c == NFA_ANY) || (state->c == NFA_BOL) || (state->c == NFA_EOL)
-	|| (state->c == NFA_NEWL)
+	|| (state->c == NFA_NEWL) || (state->c == NFA_END_NEG_RANGE)
 	|| (state->c >= NFA_CLASS_ALPHA && state->c <= NFA_CLASS_ESCAPE)	/* [:alpha:] */
 	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
 	)
@@ -1546,7 +1573,7 @@ addstate(l, state, m, off, lid, match)
 #ifdef DEBUG
 #ifndef DISABLE_LOG_FILE
     nfa_set_code(state->c);
-    fprintf(f, "> Adding state %d to list %d. Character %s, code %d\n", state->id, lid, code, state->c);
+    fprintf(f, "> Adding state %d to %slist. Character %s, code %d\n", state->id, (l == thislist? "this" : "next"), code, state->c);
 #endif
 #endif
     switch (state->c)
@@ -1562,6 +1589,10 @@ addstate(l, state, m, off, lid, match)
 	
 	case NFA_SKIP_CHAR:
 	    addstate(l, state->out, m, off, lid, match);
+	    break;
+
+	case NFA_END_NEG_RANGE:
+	    /* End a [^xyz....] construction. */
 	    break;
 
 	case NFA_MOPEN + 0:
@@ -1739,11 +1770,10 @@ nfa_regmatch(start, submatch)
     regsub_T		*submatch;
 {
     int		c, n, i = 0;
-    int		match = FALSE;
+    int		match = FALSE, negate = FALSE;
     int		flag = 0;
     int		reginput_updated = FALSE;
     thread_T	*t;
-    List	*thislist, *nextlist;
     char_u	*cc;
 
     static 	regsub_T m;
@@ -2076,16 +2106,27 @@ again:
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
-
+	    case NFA_END_NEG_RANGE:
+		if (c != NUL)
+		  addstate(thislist, t->state->out, &t->sub, listid+1, &match);
 
 	    default:	/* regular character */
-		if ((t->state->c == c) || (ireg_ic && MB_TOLOWER(t->state->c) == MB_TOLOWER(c)))
+		negate = FALSE;
+		if (t->state->out && t->state->out->c == NFA_NOT)
+		    negate = TRUE;
+		/* c should match t->state->c */
+		if ((negate == FALSE) && 
+			((t->state->c == c) || 
+			(ireg_ic && MB_TOLOWER(t->state->c) == MB_TOLOWER(c))))
 		{
-		/*
-		    if (t->state->out != NULL && t->state->out->c == NFA_MCLOSE + 0)
-			addstate(thislist, t->state->out, &t->sub, n, listid+1, &match);
-		    else    */
-			addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		}
+		/* c should NOT match t->state->c, because of [^x] */
+		if ((negate == TRUE) &&
+			((t->state->c != c ) && 
+			(!ireg_ic || MB_TOLOWER(t->state->c) != MB_TOLOWER(c))))
+		{
+		   addstate(thislist, t->state->out->out, &t->sub, n, listid+1, &match);
 		}
 		break;
 	    }
@@ -2102,6 +2143,15 @@ again:
 	   reginput_updated = FALSE;
 	   goto again;
         }
+
+#ifdef DEBUG
+#ifndef DISABLE_LOG_FILE
+    fprintf(f, ">>> Thislist had %d states available: ", thislist->n);
+    for (i = 0; i< thislist->n; i++)
+	fprintf(f, "%d  ", abs(thislist->t[i].state->id));
+    fprintf(f, "\n");
+#endif
+#endif
 
 nextchar:
 #ifdef FEAT_MBYTE
