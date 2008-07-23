@@ -2,7 +2,8 @@
 # Makefile to run all tests for Vim
 #
 
-VIMPROG = ../vim
+#VIMPROG = ../vim
+VIMPROG = /usr/bin/vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
@@ -35,6 +36,9 @@ gui:	nolog $(SCRIPTS) $(SCRIPTS_GUI)
 	@echo
 	@cat test.log
 	@echo ALL DONE
+
+39:	test39.out
+	
 
 $(SCRIPTS) $(SCRIPTS_GUI): $(VIMPROG)
 

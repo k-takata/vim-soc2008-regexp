@@ -42,8 +42,8 @@
 
 
 //#undef DEBUG
-#define BT_REGEXP_VERBOSE	    /* show/save debugging data when BT engine is used */
-#define BT_REGEXP_LOG		    /* save the data to a file instead of displaying it */
+//#define BT_REGEXP_DUMP		    /* show/save debugging data when BT engine is used */
+//#define BT_REGEXP_LOG		    /* save the data to a file instead of displaying it */
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -6124,7 +6124,7 @@ regdump(pattern, r)
     char_u  *end = NULL;
     FILE    *f;
 
-#ifndef BT_REGEXP_VERBOSE
+#ifndef BT_REGEXP_DUMP
     return;
 #endif
 #ifdef BT_REGEXP_LOG
@@ -6134,7 +6134,7 @@ regdump(pattern, r)
 #endif
     if (f == NULL)
 	return;
-    fprintf(f, "\r\nregcomp(%s):\r\n", pattern);
+    fprintf(f, "-------------------------------------\n\r\nregcomp(%s):\r\n", pattern);
 
     s = r->program + 1;
     /*
@@ -6183,7 +6183,10 @@ regdump(pattern, r)
     if (r->regmust != NULL)
 	fprintf(f, "must have \"%s\"", r->regmust);
     fprintf(f, "\r\n");
+
+#ifdef BT_REGEXP_LOG
     fclose(f);
+#endif
 }
 
 /*
@@ -7407,12 +7410,6 @@ static regengine_T bt_regengine =
 };
 
 
-static int regexp_engine;
-#define	    AUTOMATIC_ENGINE	0
-#define	    BACKTRACKING_ENGINE	1
-#define	    NFA_ENGINE		2
-
-
 #include "regexp_nfa.c"
 
 static struct regengine nfa_regengine =
@@ -7425,6 +7422,12 @@ static struct regengine nfa_regengine =
 #endif
     nfa_regexec_multi,
 };
+
+/* Which regexp engine to use? Needed for vim_regcomp() */
+static int regexp_engine;
+#define	    AUTOMATIC_ENGINE	0
+#define	    BACKTRACKING_ENGINE	1
+#define	    NFA_ENGINE		2
 
 /*
  * vim_regcomp() - compile a regular expression into internal code

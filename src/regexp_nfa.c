@@ -4,7 +4,7 @@
 
 
 //#define DISABLE_CHAR_RANGE	/* Comment this to disable the NFA implementation of  [ ] */
-//#define DISABLE_LOG_FILE	/* Comment this to enable log files. They can get pretty big */
+#define DISABLE_LOG_FILE	/* Comment this to enable log files. They can get pretty big */
 
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -243,7 +243,7 @@ static int nfa_reg(int paren);
     static int
 nfa_regatom()
 {
-    int		c, charclass, equiclass, collclass; 
+    int		c, charclass, equiclass, collclass, got_coll_char; 
     char_u	*p, *endp;
     int		extra = 0, first, emit_range, negated;
     int		startc = -1, endc = -1, oldstartc = -1;
@@ -416,7 +416,7 @@ nfa_regatom()
 		      return FAIL;
 
 		case Magic('['):
-		    /* TODO(RE): Current implementation fails tests 51,58,59 */
+		    /* TODO(RE): Current implementation fails tests 24, 51 */
 #ifdef DISABLE_CHAR_RANGE
 		    return FAIL;
 #endif
@@ -466,6 +466,7 @@ nfa_regatom()
 			{
 			    oldstartc = startc;
 			    startc = -1;
+			    got_coll_char = FALSE;
 			    if (*regparse == '[')
 			    {
 				/* Check for [: :], [= =], [. .] */
@@ -585,6 +586,7 @@ nfa_regatom()
 				    || *regparse == 'x')
 				{
 				    startc = coll_get_char();
+				    got_coll_char = TRUE;
 				    regparse--;
 				}
 				else
@@ -616,8 +618,18 @@ nfa_regatom()
 			    }
 			    else
 			    /* This char (startc) is not part of a range. Just emit it. */
-			    {
-				EMIT(startc);
+			    {	
+				/* 
+				 * Normally, simply emit startc. But if we get char code=0 
+				 * from a collating char, then replace it with 0x0a.
+				 * 
+				 * This is needed to completely mimic the behaviour of 
+				 * the backtracking engine.
+				 * */
+				if (got_coll_char == TRUE && startc == 0)
+				    EMIT(0x0a);
+				else
+				    EMIT(startc);
 				TRY_NEG();
 				EMIT_GLUE();
 			    }
@@ -628,7 +640,8 @@ nfa_regatom()
 			regparse = endp+1;		/* skip the trailing ] */
 			if (negated == TRUE)
 			{
-			    EMIT(NFA_SKIP_CHAR);	/* Mark end of negated char range */
+//			    EMIT(NFA_ANY);
+			    EMIT(NFA_END_NEG_RANGE);	/* Mark end of negated char range */
 			    EMIT(NFA_CONCAT);
 			}
 			return OK;
@@ -1024,6 +1037,7 @@ static void nfa_set_code(int c)
 	case NFA_OR: STRCPY(code, "NFA_OR"); break;
 	case NFA_QUEST:	STRCPY(code, "NFA_QUEST"); break;
 	case NFA_QUEST_NONGREEDY: STRCPY(code, "NFA_QUEST_NON_GREEDY"); break;
+	case NFA_END_NEG_RANGE:	STRCPY(code, "NFA_END_NEG_RANGE"); break;
 	case NFA_CLASS_ALNUM:	STRCPY(code, "NFA_CLASS_ALNUM"); break;
 	case NFA_CLASS_ALPHA:	STRCPY(code, "NFA_CLASS_ALPHA"); break;
 	case NFA_CLASS_BLANK:	STRCPY(code, "NFA_CLASS_BLANK"); break;
@@ -1389,7 +1403,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	    PUSH(frag(s, list1(&s->out1)));
 	    break;
 
-	case NFA_QUEST:		/* One or zero, in this order => greedy match */
+	case NFA_QUEST:		/* one or zero atoms=> greedy match */
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate ++;
@@ -1402,7 +1416,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	    PUSH(frag(s, append(e.out, list1(&s->out1))));
 	    break;
 
-	case NFA_QUEST_NONGREEDY:		/* Zero or one, in this order => non-greedy match */
+	case NFA_QUEST_NONGREEDY:	/* zero or one atoms => non-greedy match */
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate ++;
@@ -1526,11 +1540,10 @@ typedef struct
     int		n;
 } List;
 
-static List list[2];
+static List list[3];
 
 static int	listid;
-List	*thislist, *nextlist;
-
+List	*thislist, *nextlist, *neglist;
 
     static void
 addstate(l, state, m, off, lid, match)
@@ -1573,7 +1586,9 @@ addstate(l, state, m, off, lid, match)
 #ifdef DEBUG
 #ifndef DISABLE_LOG_FILE
     nfa_set_code(state->c);
-    fprintf(f, "> Adding state %d to %slist. Character %s, code %d\n", state->id, (l == thislist? "this" : "next"), code, state->c);
+    fprintf(f, "> Adding state %d to %slist. Character %s, code %d\n", 
+	abs(state->id), (l == thislist? "this" : 
+			(l == neglist ? "neg" : "next" ) ), code, state->c);
 #endif
 #endif
     switch (state->c)
@@ -1583,6 +1598,7 @@ addstate(l, state, m, off, lid, match)
 	    break;
 
 	case NFA_SPLIT:
+	    
 	    addstate(l, state->out, m, off, lid, match);
 	    addstate(l, state->out1, m, off, lid, match);
 	    break;
@@ -1592,7 +1608,8 @@ addstate(l, state, m, off, lid, match)
 	    break;
 
 	case NFA_END_NEG_RANGE:
-	    /* End a [^xyz....] construction. */
+	    /* End a [^xyz....] construction: accept any char and advance */
+//	    addstate(l, state->out, m, off, lid, match);
 	    break;
 
 	case NFA_MOPEN + 0:
@@ -1808,6 +1825,8 @@ nfa_regmatch(start, submatch)
 
     thislist = &list[0];
     thislist->n = 0;
+    neglist = &list[2];
+    neglist->n = 0;
     addstate(thislist, start, &m, 0, listid, &match);
 
     /* run for each character */
@@ -1846,9 +1865,16 @@ again:
 #endif
 
 	/* compute nextlist */
-	for (i = 0; i < thislist->n; ++i)
+	for (i = 0; i < thislist->n || neglist->n > 0; ++i)
 	{
-	    t = &thislist->t[i];
+	    if (neglist->n > 0)
+	    {
+		t = &neglist->t[0];
+		neglist->n --;
+		i--;
+	    }
+	    else
+		t = &thislist->t[i];
 #ifdef DEBUG
 #ifndef DISABLE_LOG_FILE
     nfa_set_code(t->state->c);
@@ -1860,15 +1886,7 @@ again:
 	    case NFA_MATCH:
 		match = TRUE;
 		*submatch = t->sub;
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
-    fprintf(f, "\n");
-    for (i = 0; i< NSUBEXP; i++)
-        fprintf(f, " MATCH from line %ld, col %u, to line %ld, col %u \n", submatch->startpos[i].lnum, submatch->startpos[i].col, submatch->endpos[i].lnum, submatch->endpos[i].col);
-    fprintf(f, "\n");
-#endif
-#endif
-		goto nextchar;
+		goto nextchar;		/* found the left-most longest match */
 
 	    case NFA_BOL:
 		if (reginput == regline)
@@ -1968,7 +1986,10 @@ again:
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
-/* Character classes like \a for alpha, \d for digit etc */
+	    case NFA_END_NEG_RANGE:
+		if (c > 0)
+		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		break;
 
 	    case NFA_ANY:	    
 		/* Any printable char, not just any char. '\0' (end of input) must not match */
@@ -1976,6 +1997,7 @@ again:
 		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
+/* Character classes like \a for alpha, \d for digit etc */
 	    case NFA_IDENT:
 		if (vim_isIDc(c))
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
@@ -2106,10 +2128,6 @@ again:
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
-	    case NFA_END_NEG_RANGE:
-		if (c != NUL)
-		  addstate(thislist, t->state->out, &t->sub, listid+1, &match);
-
 	    default:	/* regular character */
 		negate = FALSE;
 		if (t->state->out && t->state->out->c == NFA_NOT)
@@ -2117,16 +2135,16 @@ again:
 		/* c should match t->state->c */
 		if ((negate == FALSE) && 
 			((t->state->c == c) || 
-			(ireg_ic && MB_TOLOWER(t->state->c) == MB_TOLOWER(c))))
+			(ireg_ic == TRUE && MB_TOLOWER(t->state->c) == MB_TOLOWER(c))))
 		{
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		}
 		/* c should NOT match t->state->c, because of [^x] */
 		if ((negate == TRUE) &&
-			((t->state->c != c ) && 
-			(!ireg_ic || MB_TOLOWER(t->state->c) != MB_TOLOWER(c))))
+			((t->state->c != c) &&
+			(ireg_ic == FALSE || MB_TOLOWER(t->state->c) != MB_TOLOWER(c))))
 		{
-		   addstate(thislist, t->state->out->out, &t->sub, n, listid+1, &match);
+		   addstate(neglist, t->state->out->out, &t->sub, n, listid+1, &match);
 		}
 		break;
 	    }
@@ -2289,7 +2307,8 @@ nfa_regexec_both(line, col)
 
     list[0].t = (thread_T *)lalloc(size, TRUE);
     list[1].t = (thread_T *)lalloc(size, TRUE);
-    if (list[0].t == NULL || list[1].t == NULL)
+    list[2].t = (thread_T *)lalloc(size, TRUE);
+    if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
 	goto theend;
 
     vim_memset(list[0].t, 0, size);
