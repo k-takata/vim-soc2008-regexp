@@ -3,9 +3,11 @@
 /* File nfa_regexp.c is included automa[gt]ically in regexp.c, at the end. */
 
 
-//#define DISABLE_CHAR_RANGE	/* Comment this to disable the NFA implementation of  [ ] */
-#define DISABLE_LOG_FILE	/* Comment this to enable log files. They can get pretty big */
+#define ENABLE_CHAR_RANGE	/* Comment this out to disable the NFA implementation of  [ ] */
 
+#ifdef DEBUG
+#define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
+#endif
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
 #define	    NFA_BRACES_MAXLIMIT		    10	    
@@ -14,12 +16,10 @@
 /* Size of stack, used when converting the postfix regexp into NFA */
 #define	    NFA_STACK_SIZE		    1024
 
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
 static void nfa_postfix_dump __ARGS((char_u *expr, int retval));
 static void nfa_dump __ARGS((nfa_regprog_T *prog));
 FILE	    *f;
-#endif
 #endif
 
 /* Global variable, set during compilation of a regexp, when an error is encountered. 
@@ -73,6 +73,146 @@ nfa_regcomp_start(expr, re_flags)
 
     return OK;
 }
+
+/* 
+ * Search between "start" and "end" and try to recognize a 
+ * character class in expanded form. For example [0-9]. 
+ * On success, emit the faster id of the char class (\d for example)
+ * and return OK. 
+ * Start points to the first char of the range, while end should point
+ * to the closing brace.
+ */
+static int
+nfa_recognize_char_class(start, end)
+    char_u  *start;
+    char_u  *end;
+{
+int	not = FALSE, af = FALSE, AF = FALSE, az = FALSE, 
+	AZ = FALSE, o7 = FALSE, o9 = FALSE, underscore = FALSE,
+	newl = FALSE;
+char_u	*p;
+char_u	myconfig[9];
+static int	nfa_classcodes[] = {NFA_DIGIT, NFA_NDIGIT,
+				NFA_HEX, NFA_NHEX, NFA_OCTAL, NFA_NOCTAL,
+				NFA_WORD, NFA_NWORD, NFA_HEAD, NFA_NHEAD,
+				NFA_ALPHA, NFA_NALPHA, NFA_LOWER, NFA_NLOWER,
+				NFA_UPPER, NFA_NUPPER
+				};
+char_u	config[] =  {"000000010",	/* digit */
+		     "100000010",	/* non digit */
+		     "011000100",	/* hex-digit */
+		     "111000100",	/* non hex-digit */
+		     "000001000",	/* octal-digit */
+		     "100001000",	/* [^0-7] */
+		     "000110110",	/* [0-9A-Za-z_]	*/
+		     "100110110",	/* [^0-9A-Za-z_] */
+		     "000110010",	/* head of word */
+		     "100110010",	/* not head of word */
+		     "000110000",	/* alphabetic char a-z */
+		     "100110000",	/* non alphabetic char */
+		     "000100000",	/* lowercase letter */
+		     "100100000",	/* non lowercase */
+		     "000010000",	/* uppercase */
+		     "100010000"	/* non uppercase */
+		    };
+
+    if (*end != ']')
+	return FAIL;
+    p = start;
+    if (p == '^')
+    {
+	not = TRUE;
+	p ++;
+    }
+
+    while (p < end)
+    {
+	if (p+2 < end && *(p+1) == '-')
+	{
+	    switch (*p)
+	    {
+		case '0':   
+		    if (*(p+2) == '9')
+		    {
+			o9 = TRUE;
+			break;
+		    }
+		    else
+		    if (*(p+2) == '7')
+		    {
+			o7 = TRUE;
+			break;
+		    }
+		case 'a':
+		    if (*(p+2) == 'z')
+		    {
+			az = TRUE;
+			break;
+		    }
+		    else
+		    if (*(p+2) == 'f')
+		    {
+			af = TRUE;
+			break;
+		    }
+		case 'A':
+		    if (*(p+2) == 'Z')
+		    {
+			AZ = TRUE;
+			break;
+		    }
+		    else
+		    if (*(p+2) == 'F')
+		    {
+			AF = TRUE;
+			break;
+		    }
+		/* fallthrough */
+		default:
+		    return FAIL;
+	    }
+	    p += 3;
+	}
+	else
+	if (p+1 < end && *p == '\\' && *(p+1) == 'n')
+	{
+	    newl = TRUE;
+	    p += 2;
+	}
+    }	/* while (p < end) */
+    if (p != end)
+	return FAIL;
+
+    /* build the config that represents the ranges we gathered */
+    strcpy(myconfig, "000000000");
+    if (not == TRUE)
+	myconfig[0] = '1';
+    if (af == TRUE)
+	myconfig[1] = '1';
+    if (AF == TRUE)
+	myconfig[2] = '1';
+    if (az == TRUE)
+	myconfig[3] = '1';
+    if (AZ == TRUE)
+	myconfig[4] = '1';
+    if (o7 == TRUE)
+	myconfig[5] = '1';
+    if (o9 == TRUE)
+	myconfig[6] = '1';
+    if (underscore == TRUE)
+	myconfig[7] = '1';
+    if (newl == TRUE)
+	myconfig[8] = '1';
+
+    /* try to recognize character classes */
+    for (i = 0; i < 16; i++)
+	if (strcmp(myconfig, config[i]) == 0)
+	{
+	    oijasfoijsaofij
+	    /* TODO NEXT !!! EMIT the proper char class. Take care for being the first emmited atom */
+	}
+}
+
 
 /*
  * Produce the bytes for equivalence class "c".
@@ -297,15 +437,16 @@ nfa_regatom()
 #endif
 		      break;
 		  }
-
-		  return FAIL;	/* TODO(RE) Why fail here? */
+		    
+		  /* TODO(RE) \_x (character classes + newline) not yet supported)	*/
+		  return FAIL;
 
 		  extra = ADD_NL;
 
-		  /* "\_[" is character range plus newline */
-			  if (c == '[')
-		  /* not supported yet */
-		  return FAIL;
+		  /* TODO(RE) "\_[" is character range plus newline */
+		  if (c == '[')
+		      /* not supported yet */
+		      return FAIL;
 
 		/* "\_x" is character class plus newline */
 		/*FALLTHROUGH*/
@@ -374,7 +515,7 @@ nfa_regatom()
 
 		case Magic('('):
 			if (nfa_reg(REG_PAREN) == FAIL)
-			return FAIL;	    /* cascaded error */
+			    return FAIL;	    /* cascaded error */
 			break;
 
 		case NUL:
@@ -382,7 +523,7 @@ nfa_regatom()
 		case Magic('&'):
 		case Magic(')'):
 			syntax_error = TRUE;
-			EMSG_RET_FAIL("E999: (NFA regexp) Misplaced closing ')' ");
+			EMSG_RET_FAIL("E999: (NFA regexp) Misplaced ) or & or | ");
 
 		case Magic('='):
 		case Magic('?'):
@@ -416,8 +557,7 @@ nfa_regatom()
 		      return FAIL;
 
 		case Magic('['):
-		    /* TODO(RE): Current implementation fails tests 24, 51 */
-#ifdef DISABLE_CHAR_RANGE
+#ifndef ENABLE_CHAR_RANGE
 		    return FAIL;
 #endif
 		    /* 
@@ -450,6 +590,18 @@ nfa_regatom()
 		    endp = skip_anyof(p);
 		    if (*endp == ']')
 		    {
+			/* 
+			 * Try to reverse engineer character classes. For example,
+			 * replace [0-9] with \d and [A-Za-z_] with \h
+			 */
+			result = nfa_recognize_char_class(regparse,endp);
+			if (result == OK)
+			    break;
+			/* 
+			 * Failed to recognize a character class. Use the simple version
+			 * that turns [abc] into 'a' OR 'b' OR 'c'
+			 */
+			startc = endc = oldstartc = -1;
 			first = TRUE;		/* Emitting first atom in this sequence? */
 			negated = FALSE;
 			glue = NFA_OR;
@@ -457,10 +609,17 @@ nfa_regatom()
 			{
 			    negated = TRUE;
 			    glue = NFA_CONCAT;
-			    regparse++;
+			    regparse ++;
+			}
+			if (*regparse == '-')
+			{
+			    startc = '-';
+			    EMIT(startc);
+			    TRY_NEG();
+			    EMIT_GLUE();
+			    regparse ++;
 			}
 			/* Emit the OR branches for each character in the [] */
-			startc = endc = oldstartc = -1;
 			emit_range = FALSE;
 			while (regparse < endp)
 			{
@@ -637,6 +796,13 @@ nfa_regatom()
 			    regparse++;
 			}	    /* while (p < endp) */
 
+			if (*(regparse-1) == '-')		/* if last, '-' is just a char */
+			{
+			    EMIT('-');
+			    TRY_NEG();
+			    EMIT_GLUE();
+			}
+
 			regparse = endp+1;		/* skip the trailing ] */
 			if (negated == TRUE)
 			{
@@ -674,6 +840,10 @@ nfa_regatom()
 			return OK;
 		}
     }
+
+#undef TRY_NEG
+#undef EMIT_GLUE
+
     return OK;
 }
 
@@ -965,7 +1135,10 @@ nfa_reg(paren)
     else if (paren == REG_NOPAREN && peekchr() != NUL)
     {
 	syntax_error = TRUE;
-	EMSG_RET_FAIL("E999: (NFA regexp) proper termination error ");
+	if (peekchr() == Magic(')'))
+	    EMSG_M_RET_FAIL(_("E55: Unmatched %s)"), reg_magic == MAGIC_ALL);	
+	else
+	    EMSG_RET_FAIL("E999: (NFA regexp) proper termination error ");
     }
     /*
      * Here we set the flag allowing back references to this set of
@@ -989,8 +1162,7 @@ typedef struct
     lpos_T	endpos[NSUBEXP];
 } regsub_T;
 
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
 static char code[50]; 
 static FILE *debugf;
 static void nfa_set_code(int c)
@@ -1144,7 +1316,6 @@ static void nfa_dump(nfa_regprog_T *prog)
 	fclose(debugf);
     }
 }
-#endif
 #endif
 
 /*
@@ -1555,20 +1726,26 @@ addstate(l, state, m, off, lid, match)
     int			*match;	/* found match? */
 {
     regsub_T		save;
-    int			subidx = 0;
+    int			subidx = 0, i = 0, ignoreme = FALSE;
+    int			forget[] = {NFA_MOPEN, NFA_SPLIT};
 
     if (l == NULL || state == NULL) /* never happen */
 	return;
 
-    /* Only remember states with printable chars or beginning of groups, and codes used in nfa_regmatch() */
+    for (i = 0; i < 2; i ++)
+	if (state->c == forget[i])
+	    ignoreme = TRUE;			/* do not add certain nodes to list */
+/*
     if (state->c > 0 
 	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
 	|| (state->c == NFA_MATCH) || (state->c == NFA_BOW) || (state->c == NFA_EOW)
 	|| (state->c == NFA_ANY) || (state->c == NFA_BOL) || (state->c == NFA_EOL)
 	|| (state->c == NFA_NEWL) || (state->c == NFA_END_NEG_RANGE)
-	|| (state->c >= NFA_CLASS_ALPHA && state->c <= NFA_CLASS_ESCAPE)	/* [:alpha:] */
-	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
+	|| (state->c >= NFA_CLASS_ALNUM && state->c <= NFA_CLASS_ESCAPE)
+	|| (state->c >= NFA_IDENT && state->c <= NFA_NUPPER)
 	)
+	*/
+    if (ignoreme == FALSE)
     {	
 	if (state->lastlist == lid)
 	{
@@ -1583,13 +1760,11 @@ addstate(l, state, m, off, lid, match)
 	    state->lastthread->sub = *m;
 	}
     }
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     nfa_set_code(state->c);
     fprintf(f, "> Adding state %d to %slist. Character %s, code %d\n", 
 	abs(state->id), (l == thislist? "this" : 
 			(l == neglist ? "neg" : "next" ) ), code, state->c);
-#endif
 #endif
     switch (state->c)
     {
@@ -1611,6 +1786,13 @@ addstate(l, state, m, off, lid, match)
 	    /* End a [^xyz....] construction: accept any char and advance */
 //	    addstate(l, state->out, m, off, lid, match);
 	    break;
+
+	case NFA_NOT:
+	    EMSG("E999: (NFA regexp internal error) Should not process NOT node !");
+#ifdef ENABLE_LOG_FILE
+	fprintf(f, "\n\n>>> E999: Added state NFA_NOT to a list ... Something went \
+wrong ! Why wasn't it processed already? \n\n");
+#endif
 
 	case NFA_MOPEN + 0:
 	case NFA_MOPEN + 1:
@@ -1786,7 +1968,7 @@ nfa_regmatch(start, submatch)
     nfa_state_T		*start;
     regsub_T		*submatch;
 {
-    int		c, n, i = 0;
+    int		c, n, i = 0, result;
     int		match = FALSE, negate = FALSE;
     int		flag = 0;
     int		reginput_updated = FALSE;
@@ -1814,13 +1996,11 @@ nfa_regmatch(start, submatch)
 
     listid = 1;
 
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     f = fopen("log_nfarun.log","a");
     fprintf(f, "\n\n\n\n\n\n=======================================================\n");
     fprintf(f, "=======================================================\n\n\n\n\n\n\n");
     nfa_print_state(f, start, 0);
-#endif
 #endif
 
     thislist = &list[0];
@@ -1853,15 +2033,13 @@ again:
 	nextlist = &list[flag ^= 1];
 	nextlist->n = 0;	    /* `clear' nextlist */
 	++listid;
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     fprintf(f, "------------------------------------------\n");
     fprintf(f, ">>> Advanced one character ... Current char is %c (code %d) \n", c, (int)c);
     fprintf(f, ">>> Thislist has %d states available: ", thislist->n);
     for (i = 0; i< thislist->n; i++)
 	fprintf(f, "%d  ", abs(thislist->t[i].state->id));
     fprintf(f, "\n");
-#endif
 #endif
 
 	/* compute nextlist */
@@ -1875,12 +2053,25 @@ again:
 	    }
 	    else
 		t = &thislist->t[i];
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+	    /* Negation ? */
+	    negate = FALSE;
+	    if (t->state->out && t->state->out->c == NFA_NOT)
+		negate = TRUE;
+
+#ifdef ENABLE_LOG_FILE
     nfa_set_code(t->state->c);
     fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id), code, (int)t->state->c);
 #endif
-#endif
+
+#define	ADD_POS_NEG_STATE()				    \
+		/* Check if current char matches */	    \
+		if (negate == FALSE && result == OK)	    \
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);	\
+		else					    \
+		/* Check if current char doesn't match */   \
+		if (negate == TRUE && result != OK)	    \
+		    addstate(neglist, t->state->out->out, &t->sub, n, listid+1, &match);
+
 	    switch (t->state->c)
 	    {
 	    case NFA_MATCH:
@@ -1982,11 +2173,13 @@ again:
 	    case NFA_CLASS_RETURN:
 	    case NFA_CLASS_BACKSPACE:
 	    case NFA_CLASS_ESCAPE:
-		if (check_char_class(t->state->c, c) == OK)
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		result = check_char_class(t->state->c, c);
+		ADD_POS_NEG_STATE();
 		break;
 
 	    case NFA_END_NEG_RANGE:
+		/* This follows a series of negated nodes, like: 
+		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc */
 		if (c > 0)
 		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
@@ -1998,159 +2191,151 @@ again:
 		break;
 
 /* Character classes like \a for alpha, \d for digit etc */
-	    case NFA_IDENT:
-		if (vim_isIDc(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_IDENT:	/*  \i	*/
+		result = vim_isIDc(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_SIDENT:
-		if (!VIM_ISDIGIT(c) && vim_isIDc(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_SIDENT:	/*  \I	*/
+		result = !VIM_ISDIGIT(c) && vim_isIDc(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_KWORD:
-		if (vim_iswordp(cc))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_KWORD:	/*  \k	*/
+		result = vim_iswordp(cc);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_SKWORD:
-		if (!VIM_ISDIGIT(c) && vim_iswordp(cc))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_SKWORD:	/*  \K	*/
+		result = !VIM_ISDIGIT(c) && vim_iswordp(cc);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_FNAME:
-		if (vim_isfilec(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_FNAME:	/*  \f	*/
+		result = vim_isfilec(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_SFNAME:
-		if (!VIM_ISDIGIT(c) && vim_isfilec(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_SFNAME:	/*  \F	*/
+		result = !VIM_ISDIGIT(c) && vim_isfilec(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_PRINT:
-		if (ptr2cells(cc) == 1)
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_PRINT:	/*  \p	*/
+		result = ptr2cells(cc) == 1;
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_SPRINT:
-		if (!VIM_ISDIGIT(c) && ptr2cells(cc) == 1)
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_SPRINT:	/*  \P	*/
+		result = !VIM_ISDIGIT(c) && ptr2cells(cc) == 1;
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_WHITE:
-		if (vim_iswhite(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_WHITE:	/*  \s	*/
+		result = vim_iswhite(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NWHITE:
-		if (c != NUL && !vim_iswhite(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NWHITE:	/*  \S	*/
+		result = c != NUL && !vim_iswhite(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_DIGIT:
-		if (ri_digit(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_DIGIT:	/*  \d	*/
+		result = ri_digit(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NDIGIT:
-		if (c != NUL && !ri_digit(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NDIGIT:	/*  \D	*/
+		result = c != NUL && !ri_digit(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_HEX:
-		if (ri_hex(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_HEX:	/*  \x	*/
+		result = ri_hex(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NHEX:
-		if (c != NUL && !ri_hex(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NHEX:	/*  \X	*/
+		result = c != NUL && !ri_hex(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_OCTAL:
-		if (ri_octal(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_OCTAL:	/*  \o	*/
+		result = ri_octal(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NOCTAL:
-		if (c != NUL && !ri_octal(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NOCTAL:	/*  \O	*/
+		result = c != NUL && !ri_octal(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_WORD:
-		if (ri_word(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_WORD:	/*  \w	*/
+		result = ri_word(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NWORD:
-		if (c != NUL && !ri_word(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NWORD:	/*  \W	*/
+		result = c != NUL && !ri_word(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_HEAD:
-		if (ri_head(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_HEAD:	/*  \h	*/
+		result = ri_head(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NHEAD:
-		if (c != NUL && !ri_head(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NHEAD:	/*  \H	*/
+		result = c != NUL && !ri_head(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_ALPHA:
-		if (ri_alpha(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_ALPHA:	/*  \a	*/
+		result = ri_alpha(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NALPHA:
-		if (c != NUL && !ri_alpha(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NALPHA:	/*  \A	*/
+		result = c != NUL && !ri_alpha(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_LOWER:
-		if (ri_lower(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_LOWER:	/*  \l	*/
+		result = ri_lower(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NLOWER:
-		if (c != NUL && !ri_lower(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NLOWER:	/*  \L	*/
+		result = c != NUL && !ri_lower(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_UPPER:
-		if (ri_upper(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_UPPER:	/*  \u	*/
+		result = ri_upper(c);
+		ADD_POS_NEG_STATE();
 		break;
 
-	    case NFA_NUPPER:
-		if (c != NUL && !ri_upper(c))
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+	    case NFA_NUPPER:	/* \U	*/
+		result = c != NUL && !ri_upper(c);
+		ADD_POS_NEG_STATE();
 		break;
 
 	    default:	/* regular character */
-		negate = FALSE;
-		if (t->state->out && t->state->out->c == NFA_NOT)
-		    negate = TRUE;
-		/* c should match t->state->c */
-		if ((negate == FALSE) && 
-			((t->state->c == c) || 
-			(ireg_ic == TRUE && MB_TOLOWER(t->state->c) == MB_TOLOWER(c))))
-		{
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
-		}
-		/* c should NOT match t->state->c, because of [^x] */
-		if ((negate == TRUE) &&
-			((t->state->c != c) &&
-			(ireg_ic == FALSE || MB_TOLOWER(t->state->c) != MB_TOLOWER(c))))
-		{
-		   addstate(neglist, t->state->out->out, &t->sub, n, listid+1, &match);
-		}
+		result =    (
+			(t->state->c == c) || 
+			(ireg_ic == TRUE && MB_TOLOWER(t->state->c) == MB_TOLOWER(c)) ||
+			(un_Magic(t->state->c) == c)
+			    );
+		ADD_POS_NEG_STATE();
 		break;
 	    }
 
 	}   /* for (thislist = thislist; thislist->state; thislist++) */
 
+	/* The first found match is the leftmost one, but there may be a 
+	 * longer one. Keep running the NFA, but don't start from the 
+	 * beginning */
 	if (match == FALSE)
 	{
 	    addstate(nextlist, start, &m, n, listid+1, &match);
@@ -2162,13 +2347,11 @@ again:
 	   goto again;
         }
 
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     fprintf(f, ">>> Thislist had %d states available: ", thislist->n);
     for (i = 0; i< thislist->n; i++)
 	fprintf(f, "%d  ", abs(thislist->t[i].state->id));
     fprintf(f, "\n");
-#endif
 #endif
 
 nextchar:
@@ -2178,10 +2361,8 @@ nextchar:
 	    reginput += n;
     } while (c);
 
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     fclose(f);
-#endif
 #endif
 
     return match;
@@ -2328,8 +2509,10 @@ nfa_regexec_both(line, col)
 theend:
     vim_free(list[0].t);
     vim_free(list[1].t);
+    vim_free(list[2].t);
     list[0].t = NULL;
     list[1].t = NULL;
+    list[2].t = NULL;
 
     return retval;
 }
@@ -2372,15 +2555,13 @@ nfa_regcomp(expr, re_flags)
      * 1. first to decide size, and count repetition operators \{}
      * 2. second to emit code 
      */
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     FILE *f = fopen("log_nfarun.log", "a");
     if (f)
     {
 	fprintf(f, "\n***************\n\n\n\nCompiling regexp \"%s\" ... hold on !\n\n\n", expr);
 	fclose(f);
     }
-#endif
 #endif
 
     /* PASS 1 
@@ -2399,11 +2580,9 @@ nfa_regcomp(expr, re_flags)
     prog->regflags = regflags;
     prog->engine = &nfa_regengine;
     prog->nstate = nstate;
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     nfa_postfix_dump(expr, OK);
     nfa_dump(prog);
-#endif
 #endif
 	
 out:
@@ -2415,10 +2594,8 @@ out:
 fail:
     vim_free(prog);
     prog = NULL;
-#ifdef DEBUG
-#ifndef DISABLE_LOG_FILE
+#ifdef ENABLE_LOG_FILE
     nfa_postfix_dump(expr, FAIL);
-#endif
 #endif
     goto out;
 }

@@ -407,6 +407,7 @@ toggle_Magic(x)
  * rc_did_emsg and return NULL */
 #define EMSG_RET_NULL(m) return (EMSG(m), rc_did_emsg = TRUE, (void *)NULL)
 #define EMSG_M_RET_NULL(m, c) return (EMSG2((m), (c) ? "" : "\\"), rc_did_emsg = TRUE, (void *)NULL)
+#define EMSG_M_RET_FAIL(m, c) return (EMSG2((m), (c) ? "" : "\\"), rc_did_emsg = TRUE, FAIL)
 #define EMSG_RET_FAIL(m) return (EMSG(m), rc_did_emsg = TRUE, FAIL)
 #define EMSG_ONE_RET_NULL EMSG_M_RET_NULL(_("E369: invalid item in %s%%[]"), reg_magic == MAGIC_ALL)
 
@@ -7481,8 +7482,10 @@ vim_regcomp(expr, re_flags)
 			fprintf(f,"Syntax error in \"%s\"\n", expr);
 		    fclose(f);
 	    }
+	    /*
 	    if (syntax_error)
 		EMSG("NFA Regexp: Syntax Error !");
+	    */
 	}
 #endif
 	/* If NFA engine failed, then revert to the backtracking engine. 
