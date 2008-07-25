@@ -241,7 +241,7 @@ enum
 NFA_SPLIT = -1024,
 NFA_MATCH,
 NFA_SKIP_CHAR,		    /* matches a 0-length char */
-NFA_END_NEG_RANGE,
+NFA_END_NEG_RANGE,	    /* Used when expanding [^ab] */
 
     NFA_CONCAT,
     NFA_OR,

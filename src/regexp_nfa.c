@@ -77,29 +77,35 @@ nfa_regcomp_start(expr, re_flags)
 /* 
  * Search between "start" and "end" and try to recognize a 
  * character class in expanded form. For example [0-9]. 
- * On success, emit the faster id of the char class (\d for example)
- * and return OK. 
+ * On success, return the id the character class to be emitted. 
+ * On failure, return 0 (=FAIL)
  * Start points to the first char of the range, while end should point
  * to the closing brace.
  */
 static int
-nfa_recognize_char_class(start, end)
+nfa_recognize_char_class(start, end, extra_newl)
     char_u  *start;
     char_u  *end;
+    int	    extra_newl;
 {
+int	i;
+/* Each of these variables takes up a char in "config[]",
+ * in the order they are here. */
 int	not = FALSE, af = FALSE, AF = FALSE, az = FALSE, 
 	AZ = FALSE, o7 = FALSE, o9 = FALSE, underscore = FALSE,
 	newl = FALSE;
 char_u	*p;
+#define NCONFIGS 16
+int	classid[NCONFIGS] = 
+		    {	NFA_DIGIT, NFA_NDIGIT, NFA_HEX, NFA_NHEX, 
+			NFA_OCTAL, NFA_NOCTAL, NFA_WORD, NFA_NWORD, 
+			NFA_HEAD, NFA_NHEAD, NFA_ALPHA, NFA_NALPHA, 
+			NFA_LOWER, NFA_NLOWER, NFA_UPPER, NFA_NUPPER
+		    };
 char_u	myconfig[9];
-static int	nfa_classcodes[] = {NFA_DIGIT, NFA_NDIGIT,
-				NFA_HEX, NFA_NHEX, NFA_OCTAL, NFA_NOCTAL,
-				NFA_WORD, NFA_NWORD, NFA_HEAD, NFA_NHEAD,
-				NFA_ALPHA, NFA_NALPHA, NFA_LOWER, NFA_NLOWER,
-				NFA_UPPER, NFA_NUPPER
-				};
-char_u	config[] =  {"000000010",	/* digit */
-		     "100000010",	/* non digit */
+char_u	config[NCONFIGS][9] = {
+		     "000000100",	/* digit */
+		     "100000100",	/* non digit */
 		     "011000100",	/* hex-digit */
 		     "111000100",	/* non hex-digit */
 		     "000001000",	/* octal-digit */
@@ -114,12 +120,15 @@ char_u	config[] =  {"000000010",	/* digit */
 		     "100100000",	/* non lowercase */
 		     "000010000",	/* uppercase */
 		     "100010000"	/* non uppercase */
-		    };
+			};
+
+    if (extra_newl == TRUE)
+	newl = TRUE;
 
     if (*end != ']')
 	return FAIL;
     p = start;
-    if (p == '^')
+    if (*p == '^')
     {
 	not = TRUE;
 	p ++;
@@ -179,12 +188,26 @@ char_u	config[] =  {"000000010",	/* digit */
 	    newl = TRUE;
 	    p += 2;
 	}
+	else
+	if (*p == '_')
+	{
+	    underscore = TRUE;
+	    p ++;
+	}
+	else
+	if (*p == '\n')
+	{
+	    newl = TRUE;
+	    p ++;
+	}
+	else
+	    return FAIL;
     }	/* while (p < end) */
     if (p != end)
 	return FAIL;
 
     /* build the config that represents the ranges we gathered */
-    strcpy(myconfig, "000000000");
+    STRCPY(myconfig, "000000000");
     if (not == TRUE)
 	myconfig[0] = '1';
     if (af == TRUE)
@@ -205,12 +228,16 @@ char_u	config[] =  {"000000010",	/* digit */
 	myconfig[8] = '1';
 
     /* try to recognize character classes */
-    for (i = 0; i < 16; i++)
-	if (strcmp(myconfig, config[i]) == 0)
-	{
-	    oijasfoijsaofij
-	    /* TODO NEXT !!! EMIT the proper char class. Take care for being the first emmited atom */
-	}
+    for (i = 0; i < NCONFIGS; i++)
+	if (STRNCMP(myconfig, config[i],8) == 0)
+	    return classid[i];
+
+    /* TODO(RE) Add support for character classes + Newline */
+    
+    /* fallthrough => no success so far */
+    return FAIL;
+
+#undef NCONFIGS
 }
 
 
@@ -385,7 +412,7 @@ nfa_regatom()
 {
     int		c, charclass, equiclass, collclass, got_coll_char; 
     char_u	*p, *endp;
-    int		extra = 0, first, emit_range, negated;
+    int		extra = 0, first, emit_range, negated, result;
     int		startc = -1, endc = -1, oldstartc = -1;
     int		cpo_lit;	/* 'cpoptions' contains 'l' flag */
     int		cpo_bsl;	/* 'cpoptions' contains '\' flag */
@@ -439,14 +466,13 @@ nfa_regatom()
 		  }
 		    
 		  /* TODO(RE) \_x (character classes + newline) not yet supported)	*/
-		  return FAIL;
+		  //return FAIL;
 
 		  extra = ADD_NL;
 
 		  /* TODO(RE) "\_[" is character range plus newline */
 		  if (c == '[')
-		      /* not supported yet */
-		      return FAIL;
+		    goto charranges;		  
 
 		/* "\_x" is character class plus newline */
 		/*FALLTHROUGH*/
@@ -556,6 +582,7 @@ nfa_regatom()
 		      /* not supported yet */
 		      return FAIL;
 
+charranges:
 		case Magic('['):
 #ifndef ENABLE_CHAR_RANGE
 		    return FAIL;
@@ -571,7 +598,7 @@ nfa_regatom()
 		     */
 
 
-/* Emit negating atoms, if needed */
+/* Emit negation atoms, if needed */
 #define TRY_NEG()		    \
 	    if (negated == TRUE)    \
 	    {			    \
@@ -592,11 +619,16 @@ nfa_regatom()
 		    {
 			/* 
 			 * Try to reverse engineer character classes. For example,
-			 * replace [0-9] with \d and [A-Za-z_] with \h
+			 * recognize that [0-9] stands for  \d and [A-Za-z_] with \h,
+			 * and perform the necessary substitutions in the NFA 
 			 */
-			result = nfa_recognize_char_class(regparse,endp);
-			if (result == OK)
-			    break;
+			result = nfa_recognize_char_class(regparse,endp, extra == ADD_NL);
+			if (result != FAIL)
+			{
+			    EMIT(result);
+			    regparse = endp + 1;
+			    return OK;
+			}
 			/* 
 			 * Failed to recognize a character class. Use the simple version
 			 * that turns [abc] into 'a' OR 'b' OR 'c'
@@ -738,7 +770,7 @@ nfa_regatom()
 				    return FAIL;	/* multibyte chars not supported yet */
 
 				if (*regparse == 'n' || *regparse == 'n')
-				    startc = NFA_NEWL;
+				    startc = reg_string ? NL : NFA_NEWL; 
 				else
 				if (*regparse == 'd'
 				    || *regparse == 'o'
@@ -803,10 +835,16 @@ nfa_regatom()
 			    EMIT_GLUE();
 			}
 
+			if (extra == ADD_NL)		/* \_[] also matches \n */
+			{
+			    EMIT(reg_string ? NL : NFA_NEWL);
+			    TRY_NEG();
+			    EMIT_GLUE();
+			}
+
 			regparse = endp+1;		/* skip the trailing ] */
 			if (negated == TRUE)
 			{
-//			    EMIT(NFA_ANY);
 			    EMIT(NFA_END_NEG_RANGE);	/* Mark end of negated char range */
 			    EMIT(NFA_CONCAT);
 			}
@@ -894,7 +932,25 @@ nfa_regpiece()
 	    break;
 
 	case Magic('+'):
-	    EMIT(NFA_PLUS);
+	/* 
+	 * Trick: Normally, (a*)\+ would match the whole input "aaa".
+	 * The first and only submatch would be "aaa". But the backtracking 
+	 * engine interprets the plus as "try matching one more time", and 
+	 * a* matches a second time at the end of the input, the empty string.
+	 * The submatch will the empty string. 
+	 *
+	 * In order to be consistent with the old engine, we disable NFA_PLUS,
+	 * and replace <atom>+ with <atom><atom>*
+	 */
+/*	    EMIT(NFA_PLUS);	    */
+	    regnpar = old_regnpar;
+	    regparse = old_regparse;
+	    curchr = -1;
+	    if (nfa_regatom() == FAIL)
+		return FAIL;	
+	    EMIT(NFA_STAR);
+	    EMIT(NFA_CONCAT);
+	    skipchr();		/* skip the \+	*/
 	    break;
 
 	case Magic('@'):
@@ -1735,16 +1791,6 @@ addstate(l, state, m, off, lid, match)
     for (i = 0; i < 2; i ++)
 	if (state->c == forget[i])
 	    ignoreme = TRUE;			/* do not add certain nodes to list */
-/*
-    if (state->c > 0 
-	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
-	|| (state->c == NFA_MATCH) || (state->c == NFA_BOW) || (state->c == NFA_EOW)
-	|| (state->c == NFA_ANY) || (state->c == NFA_BOL) || (state->c == NFA_EOL)
-	|| (state->c == NFA_NEWL) || (state->c == NFA_END_NEG_RANGE)
-	|| (state->c >= NFA_CLASS_ALNUM && state->c <= NFA_CLASS_ESCAPE)
-	|| (state->c >= NFA_IDENT && state->c <= NFA_NUPPER)
-	)
-	*/
     if (ignoreme == FALSE)
     {	
 	if (state->lastlist == lid)
@@ -1978,7 +2024,7 @@ nfa_regmatch(start, submatch)
     static 	regsub_T m;
     c = -1;
 
-    if (REG_MULTI) /* TODO(RE) write a function */
+    if (REG_MULTI)
     {
         /* Use 0xff to set lnum to -1 */
         vim_memset(submatch->startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
@@ -2077,6 +2123,11 @@ again:
 	    case NFA_MATCH:
 		match = TRUE;
 		*submatch = t->sub;
+	/*	if (reginput_updated)
+		{
+		    reginput_updated = FALSE;
+		    goto again;
+		}   */
 		goto nextchar;		/* found the left-most longest match */
 
 	    case NFA_BOL:
@@ -2551,8 +2602,8 @@ nfa_regcomp(expr, re_flags)
 	goto fail;	    /* Cascaded (syntax?) error */
 
     /* 
-     * TODO(RE) Two passes: 
-     * 1. first to decide size, and count repetition operators \{}
+     * In order to build the NFA, we parse the input regexp twice:
+     * 1. first pass to count size (so we can allocate space)
      * 2. second to emit code 
      */
 #ifdef ENABLE_LOG_FILE
@@ -2565,7 +2616,7 @@ nfa_regcomp(expr, re_flags)
 #endif
 
     /* PASS 1 
-     * Parse expression, count number of NFA states in "nstate". Do not build the NFA. 
+     * Count number of NFA states in "nstate". Do not build the NFA. 
      */
     post2nfa(postfix, post_ptr, TRUE);
     state_ptr = prog->state;
