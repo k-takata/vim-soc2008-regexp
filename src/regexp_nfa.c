@@ -524,7 +524,12 @@ nfa_regatom()
 #ifdef DEBUG
 //	EMSG3("E999: (NFA) Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
 #endif
-			EMIT(nfa_classcodes[p - classchars] + extra);
+			EMIT(nfa_classcodes[p - classchars]);
+			if (extra == ADD_NL)
+			{
+			    EMIT(NFA_NEWL);
+			    EMIT(NFA_OR);
+			}
 			break;
 
 		case Magic('n'):
@@ -2014,7 +2019,7 @@ nfa_regmatch(start, submatch)
     nfa_state_T		*start;
     regsub_T		*submatch;
 {
-    int		c, n, i = 0, result;
+    int		c, n, i = 0, j, result;
     int		match = FALSE, negate = FALSE;
     int		flag = 0;
     int		reginput_updated = FALSE;
@@ -2123,12 +2128,16 @@ again:
 	    case NFA_MATCH:
 		match = TRUE;
 		*submatch = t->sub;
-	/*	if (reginput_updated)
-		{
-		    reginput_updated = FALSE;
-		    goto again;
-		}   */
+#ifdef ENABLE_LOG_FILE
+    for (j = 0; j < 4; j++)
+	if (REG_MULTI)
+	    fprintf(f, "\n *** group %d, start: c=%d, l=%d, end: c=%d, l=%d", j, t->sub.startpos[j].col, (int)t->sub.startpos[j].lnum, t->sub.endpos[j].col, (int)t->sub.endpos[j].lnum);
+	else	
+	    fprintf(f, "\n *** group %d, start: \"%s\", end: \"%s\"", j, (char *)t->sub.start[j], (char *)t->sub.end[j]);
+    fprintf(f, "\n");
+#endif
 		goto nextchar;		/* found the left-most longest match */
+		break;
 
 	    case NFA_BOL:
 		if (reginput == regline)
@@ -2410,7 +2419,7 @@ nextchar:
 	/* TODO(RE) Check for following composing character. */
 #endif
 	    reginput += n;
-    } while (c);
+    } while (c || reginput_updated);
 
 #ifdef ENABLE_LOG_FILE
     fclose(f);
