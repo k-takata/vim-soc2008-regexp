@@ -2,18 +2,17 @@
 # Makefile to run all tests for Vim
 #
 
-#VIMPROG = /usr/bin/vim
-VIMPROG = /soc2008/vim-new/src/vim
+VIMPROG = /usr/bin/vim
+#VIMPROG = ../vim-new/src/vim
 #VIMPROG = ../vim-old/src/vim
 #VIMPROG = ../vim-both/src/vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
-#VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
+# VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
 
-SCRIPTS = 	\
-			test39.out test42.out \
-#			regexptest.out test24.out test51.out test58.out test59.out \
+SCRIPTS = 	regexptest.out test24.out test51.out test58.out \
+			test59.out 
 #			test49.out
 
 SCRIPTS_GUI = test16.out
@@ -26,20 +25,13 @@ new: nolog regexptest.out
 	@echo
 	@cat test.log
 
-39: nolog test39.out
+51: test51.out
 	@echo
 	@cat test.log
-	@echo ALL DONE
 
-49: test49.out
+49: nolog test49.out
 	@echo
 	@cat test.log
-	@echo ALL DONE
-
-42: nolog test42.out
-	@echo
-	@cat test.log
-	@echo ALL DONE
 
 nongui:	nolog $(SCRIPTS)
 	@echo

@@ -108,6 +108,9 @@ STARTTEST
 :call add(tl, ['\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
 :call add(tl, ['\v(a{-1,3})+','aa','aa','a'])
 
+:" Test Character classes 
+:call add(tl, ['\d\+e\d\d','test 10e23 fd','10e23'])
+
 :" Test character range []
 :call add(tl, ['\v[a]', 'abcd', 'a'])
 :call add(tl, ['a[bcd]', 'abcd', 'ab'])
@@ -115,16 +118,47 @@ STARTTEST
 :call add(tl, ['[a-d][e-f][x-x]d', 'cexdxx', 'cexd'])
 :call add(tl, ['\v[[:alpha:]]+', 'abcdefghijklmnopqrstuvwxyz6','abcdefghijklmnopqrstuvwxyz'])
 :call add(tl, ['[[:alpha:]\+]', '6x8','x'])
+:call add(tl, ['[^abc]\+','abcabcabc'])
+:call add(tl, ['[^abc]','defghiasijvoinasoiunbvb','d'])
+:call add(tl, ['[^abc]\+','ddddddda','ddddddd'])
+:call add(tl, ['[^a-d]\+','aaaAAAZIHFNCddd','AAAZIHFNC'])
+:call add(tl, ['[a-f]*','iiiiiiii',''])
+:call add(tl, ['[a-f]*','abcdefgh','abcdef'])
+:call add(tl, ['[^a-f]\+','abcdefgh','gh'])
+:call add(tl, ['[a-c]\{-3,6}','abcabc','abc'])
+:call add(tl, ['[^[:alpha:]]\+','abcccadfoij7787ysf287yrnccdu','7787'])
+:call add(tl, ['[-a]', '-', '-'])
+:call add(tl, ['[a-]', '-', '-'])
+:call add(tl, ['[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])		" filename regexp
+:call add(tl, ['[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars 
+:call add(tl, ['[[.a.]]\+', 'aa', 'aa'])								" collation elem
+:call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])							" equivalence classes
+:call add(tl, ['abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
+:call add(tl, ['abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
 
-
-:" Test Character classes 
-:call add(tl, ['\d\+e\d\d','test 10e23 fd','10e23'])
+:"""" Test recognition of some character classes
+:call add(tl, ['[0-9]', '8', '8'])
+:call add(tl, ['[^0-9]', '8'])
+:call add(tl, ['[0-9a-fA-F]*', '0a7', '0a7'])
+:call add(tl, ['[^0-9A-Fa-f]\+', '0a7'])
+:call add(tl, ['[a-z_A-Z0-9]\+', 'aso_sfoij', 'aso_sfoij'])
+:call add(tl, ['[a-z]', 'a', 'a'])
+:call add(tl, ['[a-zA-Z]', 'a', 'a'])
+:call add(tl, ['[A-Z]', 'a'])
+:call add(tl, ['\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
 
 :"""" TODO: Write tests for \@ features
 :"""" TODO: Write more tests for groups, and submatches
 
-:"""" Debugging tests
+:"""" Combining different tests and features
+:call add(tl, ['[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
+:call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])							" equivalence classes + not
 
+:"""" Debugging tests
+:call add(tl, ['\v((ab)+|c+)+', 'abcccaba', 'abcccab', 'ab', 'ab'])
+:call add(tl, ['\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+:call add(tl, ['\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
+:call add(tl, ['\v(a*)+', 'aaaa', 'aaaa', ''])
 
 :"
 :for t in tl
@@ -155,6 +189,8 @@ STARTTEST
 :  endif
 :endfor
 :unlet t tl e l 
+
+/\%#=1
 :/^Results/,$wq! test.out
 ENDTEST
 
