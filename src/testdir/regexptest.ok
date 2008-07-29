@@ -1,254 +1,119 @@
 Results of regexptest:
-
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
-OK
+OK - ab
+OK - ab
+OK - ab
+OK - x*
+OK - x*
+OK - x*
+OK - x\+
+OK - x\+
+OK - x\+
+OK - x\+
+OK - x\=
+OK - x\=
+OK - x\=
+OK - x\?
+OK - x\?
+OK - x\?
+OK - a\{0,0}
+OK - a\{0,1}
+OK - a\{1,0}
+OK - a\{3,6}
+OK - a\{3,6}
+OK - a\{3,6}
+OK - a\{0}
+OK - a\{2}
+OK - a\{2}
+OK - a\{2}
+OK - a\{0,}
+OK - a\{0,}
+OK - a\{2,}
+OK - a\{2,}
+OK - a\{,0}
+OK - a\{,5}
+OK - a\{,5}
+OK - a\{}
+OK - a\{}
+OK - a\{-0,0}
+OK - a\{-0,1}
+OK - a\{-3,6}
+OK - a\{-3,6}
+OK - a\{-3,6}
+OK - a\{-0}
+OK - a\{-2}
+OK - a\{-2}
+OK - a\{-0,}
+OK - a\{-0,}
+OK - a\{-2,}
+OK - a\{-2,}
+OK - a\{-,0}
+OK - a\{-,5}
+OK - a\{-,5}
+OK - a\{-}
+OK - a\{-}
+OK - abc\@=
+OK - abc\@=cd
+OK - abc\@=
+OK - abcd\@=e
+OK - abcd\@=e
+OK - abc\@!
+OK - abc\@!
+OK - c\@<=test
+OK - c\@<=test
+OK - c\@<!haha
+OK - c\@<!haha
+OK - xyz\@>cd
+OK - xyz\@>cd
+OK - \(abc\)*
+OK - \(ab\)\+
+OK - \(abaaaaa\)*cd
+OK - \(test1\)\? \(test2\)\?
+OK - \(test1\)\= \(test2\) \(test4443\)\=
+OK - \(\(sub1\) hello \(sub 2\)\)
+OK - \(\(\(yyxxzz\)\)\)
+OK - \v((ab)+|c+)+
+OK - \v((ab)|c*)+
+OK - \v(a(c*)+b)+
+OK - \v(a|b*)+
+OK - a\{-2,7}
+OK - a\{2,7}
+OK - \vx(.{-,8})yz(.*)
+OK - \vx(.*)yz(.*)
+OK - \v(a{1,2}){-2,3}
+OK - \v(a{-1,3})+
+OK - \d\+e\d\d
+OK - \v[a]
+OK - a[bcd]
+OK - a[b-d]
+OK - [a-d][e-f][x-x]d
+OK - \v[[:alpha:]]+
+OK - [[:alpha:]\+]
+OK - [^abc]\+
+OK - [^abc]
+OK - [^abc]\+
+OK - [^a-d]\+
+OK - [a-f]*
+OK - [a-f]*
+OK - [^a-f]\+
+OK - [a-c]\{-3,6}
+OK - [^[:alpha:]]\+
+OK - [-a]
+OK - [a-]
+OK - [-./[:alnum:]_~]\+
+OK - [\]\^\-\\]\+
+OK - [[.a.]]\+
+OK - [[=a=]]\+
+OK - abc[0-9]*ddd
+OK - abc[0-9]*ddd
+OK - [0-9]
+OK - [^0-9]
+OK - [0-9a-fA-F]*
+OK - [^0-9A-Fa-f]\+
+OK - [a-z_A-Z0-9]\+
+OK - [a-z]
+OK - [a-zA-Z]
+OK - [A-Z]
+OK - \C[^A-Z]\+
+OK - [[:alpha:]]\{-2,6}
+OK - [^[=a=]]\+
+OK - [[:alpha:][=a=]]\+

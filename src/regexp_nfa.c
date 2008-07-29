@@ -6,7 +6,7 @@
 #define ENABLE_CHAR_RANGE	/* Comment this out to disable the NFA implementation of  [ ] */
 
 #ifdef DEBUG
-#define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
+//#define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
 #endif
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -248,9 +248,23 @@ char_u	config[NCONFIGS][9] = {
  * NOTE! When changing this function, also update reg_equi_class()
  */
     static int
-nfa_emit_equi_class(c)
+nfa_emit_equi_class(c, neg)
     int	    c;
+    int	    neg;
 {
+int	first = TRUE;
+int	glue = neg == TRUE ? NFA_CONCAT : NFA_OR; 
+#define EMIT_GLU()		\
+	if (neg == TRUE) {	\
+	    EMIT(NFA_NOT);	\
+	    EMIT(NFA_CONCAT);	\
+	}			\
+	if (first == FALSE)	\
+	    EMIT(glue);		\
+	else			\
+	    first = FALSE;	\
+	    
+
 #ifdef FEAT_MBYTE
     if (enc_utf8 || STRCMP(p_enc, "latin1") == 0
 					 || STRCMP(p_enc, "iso-8859-15") == 0)
@@ -260,128 +274,132 @@ nfa_emit_equi_class(c)
 	{
 	    case 'A': case '\300': case '\301': case '\302':
 	    case '\303': case '\304': case '\305':
-		    EMIT('A');
-		    EMIT('\300');   EMIT(NFA_OR);
-		    EMIT('\301');   EMIT(NFA_OR);
-		    EMIT('\302');   EMIT(NFA_OR);
-		    EMIT('\303');   EMIT(NFA_OR);
-		    EMIT('\304');   EMIT(NFA_OR);
-		    EMIT('\305');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('A');	    EMIT_GLU();
+		    EMIT('\300');   EMIT_GLU();
+		    EMIT('\301');   EMIT_GLU();
+		    EMIT('\302');   EMIT_GLU();
+		    EMIT('\303');   EMIT_GLU();
+		    EMIT('\304');   EMIT_GLU();
+		    EMIT('\305');   EMIT_GLU();
+		    return OK;
 
 	    case 'C': case '\307':
-		    EMIT('C');
-		    EMIT('\307');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('C');	    EMIT_GLU();
+		    EMIT('\307');   EMIT_GLU();
+		    return OK;
 
 	    case 'E': case '\310': case '\311': case '\312': case '\313':
-		    EMIT('E');
-		    EMIT('\310');   EMIT(NFA_OR);
-		    EMIT('\311');   EMIT(NFA_OR);
-		    EMIT('\312');   EMIT(NFA_OR);
-		    EMIT('\313');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('E');	    EMIT_GLU();
+		    EMIT('\310');   EMIT_GLU();
+		    EMIT('\311');   EMIT_GLU();
+		    EMIT('\312');   EMIT_GLU();
+		    EMIT('\313');   EMIT_GLU();
+		    return OK;
 
 	    case 'I': case '\314': case '\315': case '\316': case '\317':
-		    EMIT('I');
-		    EMIT('\315');   EMIT(NFA_OR);
-		    EMIT('\316');   EMIT(NFA_OR);
-		    EMIT('\317');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('I');	    EMIT_GLU();
+		    EMIT('\315');   EMIT_GLU();
+		    EMIT('\316');   EMIT_GLU();
+		    EMIT('\317');   EMIT_GLU();
+		    return OK;
 
 	    case 'N': case '\321':
-		    EMIT('N');
-		    EMIT('\321');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('N');	    EMIT_GLU();
+		    EMIT('\321');   EMIT_GLU();
+		    return OK;
 
 	    case 'O': case '\322': case '\323': case '\324': case '\325':
 	    case '\326':
-		    EMIT('O');
-		    EMIT('\322');   EMIT(NFA_OR);
-		    EMIT('\323');   EMIT(NFA_OR);
-		    EMIT('\324');   EMIT(NFA_OR);
-		    EMIT('\325');   EMIT(NFA_OR);
-		    EMIT('\326');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('O');	    EMIT_GLU();
+		    EMIT('\322');   EMIT_GLU();
+		    EMIT('\323');   EMIT_GLU();
+		    EMIT('\324');   EMIT_GLU();
+		    EMIT('\325');   EMIT_GLU();
+		    EMIT('\326');   EMIT_GLU();
+		    return OK;
 
 	    case 'U': case '\331': case '\332': case '\333': case '\334':
-		    EMIT('U');
-		    EMIT('\331');   EMIT(NFA_OR);
-		    EMIT('\332');   EMIT(NFA_OR);
-		    EMIT('\333');   EMIT(NFA_OR);
-		    EMIT('\334');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('U');	    EMIT_GLU();
+		    EMIT('\331');   EMIT_GLU();
+		    EMIT('\332');   EMIT_GLU();
+		    EMIT('\333');   EMIT_GLU();
+		    EMIT('\334');   EMIT_GLU();
+		    return OK;
 
 	    case 'Y': case '\335':
-		    EMIT('Y');
-		    EMIT('\335');   EMIT(NFA_OR);
-		    return 0; 
+		    EMIT('Y');	    EMIT_GLU();
+		    EMIT('\335');   EMIT_GLU();
+		    return OK; 
 
 	    case 'a': case '\340': case '\341': case '\342':
 	    case '\343': case '\344': case '\345':
-		    EMIT('a');
-		    EMIT('\340');   EMIT(NFA_OR);
-		    EMIT('\341');   EMIT(NFA_OR);
-		    EMIT('\342');   EMIT(NFA_OR);
-		    EMIT('\343');   EMIT(NFA_OR);
-		    EMIT('\344');   EMIT(NFA_OR);
-		    EMIT('\345');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('a');	    EMIT_GLU();
+		    EMIT('\340');   EMIT_GLU();
+		    EMIT('\341');   EMIT_GLU();
+		    EMIT('\342');   EMIT_GLU();
+		    EMIT('\343');   EMIT_GLU();
+		    EMIT('\344');   EMIT_GLU();
+		    EMIT('\345');   EMIT_GLU();
+		    return OK;
 
 	    case 'c': case '\347':
-		    EMIT('c');
-		    EMIT('\347');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('c');	    EMIT_GLU();
+		    EMIT('\347');   EMIT_GLU();
+		    return OK;
 
 	    case 'e': case '\350': case '\351': case '\352': case '\353':
-		    EMIT('e');
-		    EMIT('\350');   EMIT(NFA_OR);
-		    EMIT('\351');   EMIT(NFA_OR);
-		    EMIT('\352');   EMIT(NFA_OR);
-		    EMIT('\353');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('e');	    EMIT_GLU();
+		    EMIT('\350');   EMIT_GLU();
+		    EMIT('\351');   EMIT_GLU();
+		    EMIT('\352');   EMIT_GLU();
+		    EMIT('\353');   EMIT_GLU();
+		    return OK;
 
 	    case 'i': case '\354': case '\355': case '\356': case '\357':
-		    EMIT('i');
-		    EMIT('\354');   EMIT(NFA_OR);
-		    EMIT('\355');   EMIT(NFA_OR);
-		    EMIT('\356');   EMIT(NFA_OR);
-		    EMIT('\357');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('i');	    EMIT_GLU();
+		    EMIT('\354');   EMIT_GLU();
+		    EMIT('\355');   EMIT_GLU();
+		    EMIT('\356');   EMIT_GLU();
+		    EMIT('\357');   EMIT_GLU();
+		    return OK;
 
 	    case 'n': case '\361':
-		    EMIT('n');
-		    EMIT('\361');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('n');	    EMIT_GLU();
+		    EMIT('\361');   EMIT_GLU();
+		    return OK;
 
 	    case 'o': case '\362': case '\363': case '\364': case '\365':
 	    case '\366':
-		    EMIT('o');
-		    EMIT('\362');   EMIT(NFA_OR);
-		    EMIT('\363');   EMIT(NFA_OR);
-		    EMIT('\364');   EMIT(NFA_OR);
-		    EMIT('\365');   EMIT(NFA_OR);
-		    EMIT('\366');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('o');	    EMIT_GLU();
+		    EMIT('\362');   EMIT_GLU();
+		    EMIT('\363');   EMIT_GLU();
+		    EMIT('\364');   EMIT_GLU();
+		    EMIT('\365');   EMIT_GLU();
+		    EMIT('\366');   EMIT_GLU();
+		    return OK;
 
 	    case 'u': case '\371': case '\372': case '\373': case '\374':
-		    EMIT('u');
-		    EMIT('\371');   EMIT(NFA_OR);
-		    EMIT('\372');   EMIT(NFA_OR);
-		    EMIT('\373');   EMIT(NFA_OR);
-		    EMIT('\374');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('u');	    EMIT_GLU();
+		    EMIT('\371');   EMIT_GLU();
+		    EMIT('\372');   EMIT_GLU();
+		    EMIT('\373');   EMIT_GLU();
+		    EMIT('\374');   EMIT_GLU();
+		    return OK;
 
 	    case 'y': case '\375': case '\377':
-		    EMIT('y');
-		    EMIT('\375');   EMIT(NFA_OR);
-		    EMIT('\377');   EMIT(NFA_OR);
-		    return 0;
+		    EMIT('y');	    EMIT_GLU();
+		    EMIT('\375');   EMIT_GLU();
+		    EMIT('\377');   EMIT_GLU();
+		    return OK;
+
+	    default:
+		    return FAIL;
 	}
     }
 
     EMIT(c);
-    return 0;
+    return OK;
+#undef EMIT_GLU
 }
 
 /*
@@ -466,7 +484,7 @@ nfa_regatom()
 		  }
 		    
 		  /* TODO(RE) \_x (character classes + newline) not yet supported)	*/
-		  //return FAIL;
+		  return FAIL;
 
 		  extra = ADD_NL;
 
@@ -598,12 +616,13 @@ charranges:
 		     *
 		     * [abc] expands to 'a b NFA_OR c NFA_OR' (in postfix notation)
 		     * [^abc] expands to 'a NFA_NOT b NFA_NOT NFA_CONCAT c NFA_NOT NFA_CONCAT
-		     *		NFA_END_NEG_RANGE NFA_CONCAT' (in postfix notation)	
+		     *		NFA_CONCAT NFA_END_NEG_RANGE NFA_CONCAT' (in postfix notation)	
 		     *
 		     */
 
 
-/* Emit negation atoms, if needed */
+/* Emit negation atoms, if needed 
+ * The CONCAT below merges the NOT with the previous node */
 #define TRY_NEG()		    \
 	    if (negated == TRUE)    \
 	    {			    \
@@ -736,8 +755,12 @@ charranges:
 				/* Try equivalence class [=a=] and the like */
 				if (equiclass != 0)
 				{
-				    nfa_emit_equi_class(equiclass);
-				    TRY_NEG();
+				    result = nfa_emit_equi_class(equiclass, negated);
+				    if (result == FAIL)
+				    {
+					/* should never happen */
+					EMSG_RET_FAIL("E999: Error building NFA with equivalence class!");
+				    }
 				    EMIT_GLUE();
 				    continue;
 				}
@@ -1355,6 +1378,7 @@ static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
 	return;
 
     int i;
+    fprintf(debugf, "(%2d)", abs(state->id));
     for (i=0;i<ident; i++)
 	fprintf(debugf,"%c", ' ');
 
@@ -1787,16 +1811,25 @@ addstate(l, state, m, off, lid, match)
     int			*match;	/* found match? */
 {
     regsub_T		save;
-    int			subidx = 0, i = 0, ignoreme = FALSE;
-    int			forget[] = {NFA_MOPEN, NFA_SPLIT};
+    int			subidx = 0;
 
     if (l == NULL || state == NULL) /* never happen */
 	return;
 
-    for (i = 0; i < 2; i ++)
-	if (state->c == forget[i])
-	    ignoreme = TRUE;			/* do not add certain nodes to list */
-    if (ignoreme == FALSE)
+    /* TODO(RE) Optimize next if ... what ids should not be remembered? */
+
+    /* Only remember states with printable chars or 
+     * beginning of groups, and codes used in nfa_regmatch() */
+    if (state->c > 0 
+	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
+	|| (state->c == NFA_MATCH)  || (state->c == NFA_BOW) || (state->c == NFA_EOW)
+	|| (state->c == NFA_ANY)    || (state->c == NFA_BOL) || (state->c == NFA_EOL)
+	|| (state->c == NFA_NEWL)   || (state->c == NFA_END_NEG_RANGE)
+	|| (state->c >= NFA_CLASS_ALNUM && state->c <= NFA_CLASS_ESCAPE)	/* [:alpha:] */
+	|| (state->c >= '\300' && state->c <= '\377')				/* equivalence classes */
+	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
+	|| (state->c >= NFA_FIRST_NL && state->c <= NFA_LAST_NL)		/* \n + \a, \d etc */
+	)
     {	
 	if (state->lastlist == lid)
 	{
@@ -2019,9 +2052,10 @@ nfa_regmatch(start, submatch)
     nfa_state_T		*start;
     regsub_T		*submatch;
 {
-    int		c, n, i = 0, j, result;
+    int		c, n, i = 0, result;
     int		match = FALSE, negate = FALSE;
     int		flag = 0;
+    int		j = 0;
     int		reginput_updated = FALSE;
     thread_T	*t;
     char_u	*cc;
