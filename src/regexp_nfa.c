@@ -6,7 +6,7 @@
 #define ENABLE_CHAR_RANGE	/* Comment this out to disable the NFA implementation of  [ ] */
 
 #ifdef DEBUG
-//#define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
+#define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
 #endif
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -225,14 +225,14 @@ char_u	config[NCONFIGS][9] = {
     if (underscore == TRUE)
 	myconfig[7] = '1';
     if (newl == TRUE)
+    {
 	myconfig[8] = '1';
-
+	extra_newl = ADD_NL;
+    }
     /* try to recognize character classes */
     for (i = 0; i < NCONFIGS; i++)
 	if (STRNCMP(myconfig, config[i],8) == 0)
-	    return classid[i];
-
-    /* TODO(RE) Add support for character classes + Newline */
+	    return classid[i] + extra_newl;
     
     /* fallthrough => no success so far */
     return FAIL;
@@ -482,15 +482,12 @@ nfa_regatom()
 #endif
 		      break;
 		  }
-		    
-		  /* TODO(RE) \_x (character classes + newline) not yet supported)	*/
-		  return FAIL;
 
 		  extra = ADD_NL;
 
-		  /* TODO(RE) "\_[" is character range plus newline */
+		  /* "\_[" is collection plus newline */
 		  if (c == '[')
-		    goto charranges;		  
+		    goto collection;		  
 
 		/* "\_x" is character class plus newline */
 		/*FALLTHROUGH*/
@@ -539,14 +536,12 @@ nfa_regatom()
 			    goto nfa_do_multibyte;
 			}
 #endif
-#ifdef DEBUG
-//	EMSG3("E999: (NFA) Class char %c, found at index %d in nfa_classcodes", c, p-classchars);
-#endif
 			EMIT(nfa_classcodes[p - classchars]);
 			if (extra == ADD_NL)
 			{
 			    EMIT(NFA_NEWL);
 			    EMIT(NFA_OR);
+			    regflags |= RF_HASNL;
 			}
 			break;
 
@@ -605,7 +600,7 @@ nfa_regatom()
 		      /* not supported yet */
 		      return FAIL;
 
-charranges:
+collection:
 		case Magic('['):
 #ifndef ENABLE_CHAR_RANGE
 		    return FAIL;
@@ -649,7 +644,14 @@ charranges:
 			result = nfa_recognize_char_class(regparse,endp, extra == ADD_NL);
 			if (result != FAIL)
 			{
-			    EMIT(result);
+			    if (result >= NFA_DIGIT && result <= NFA_NUPPER)
+				EMIT(result);
+			    else	/* must be char class + newline */
+			    {
+				EMIT(result - ADD_NL);
+				EMIT(NFA_NEWL);
+				EMIT(NFA_OR);
+			    }
 			    regparse = endp + 1;
 			    return OK;
 			}
@@ -2055,10 +2057,12 @@ nfa_regmatch(start, submatch)
     int		c, n, i = 0, result;
     int		match = FALSE, negate = FALSE;
     int		flag = 0;
-    int		j = 0;
     int		reginput_updated = FALSE;
     thread_T	*t;
     char_u	*cc;
+#ifdef ENABLE_LOG_FILE
+    int		j = 0;
+#endif
 
     static 	regsub_T m;
     c = -1;
@@ -2092,6 +2096,9 @@ nfa_regmatch(start, submatch)
     thislist->n = 0;
     neglist = &list[2];
     neglist->n = 0;
+#ifdef ENABLE_LOG_FILE
+    fprintf(f, "(---) STARTSTATE\n");
+#endif
     addstate(thislist, start, &m, 0, listid, &match);
 
     /* run for each character */
@@ -2245,9 +2252,12 @@ again:
 		if (!reg_line_lbr && REG_MULTI
 				&& c == NUL && reglnum <= reg_maxline)
 		{
-		    reg_nextline();
+		    if (reginput_updated == FALSE)
+		    {
+			reg_nextline();
+			reginput_updated = TRUE;
+		    }
 		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
-		    reginput_updated = TRUE;
 		}
 		break;
 
@@ -2432,6 +2442,9 @@ again:
 	 * beginning */
 	if (match == FALSE)
 	{
+#ifdef ENABLE_LOG_FILE
+    fprintf(f, "(---) STARTSTATE\n");
+#endif
 	    addstate(nextlist, start, &m, n, listid+1, &match);
 	}
 
@@ -2588,6 +2601,7 @@ nfa_regexec_both(line, col)
 
     vim_memset(list[0].t, 0, size);
     vim_memset(list[1].t, 0, size);
+    vim_memset(list[2].t, 0, size);
 
     /* TODO need speedup */
     for (i = 0; i < nstate; ++i)
