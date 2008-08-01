@@ -25,6 +25,11 @@ new: nolog regexptest.out
 	@echo
 	@cat test.log
 
+46: nolog test46.out
+	@echo
+	@cat test.log
+	@echo ALL DONE
+
 51: test51.out
 	@echo
 	@cat test.log

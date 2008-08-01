@@ -77,21 +77,7 @@ STARTTEST
 :call add(tl, ['a\{-}', 'bbbcddiuhfcd', ''])            " anti-greedy version of 'a*'
 :call add(tl, ['a\{-}', 'aaaaioudfh coisf jda', ''])
 
-:call add(tl, ['abc\@=', 'abc', 'ab'])
-:call add(tl, ['abc\@=cd', 'abcd', 'abcd'])
-:call add(tl, ['abc\@=', 'ababc', 'ab'])
-:call add(tl, ['abcd\@=e', 'abcd'])                     " will never match, no matter the input text
-:call add(tl, ['abcd\@=e', 'any text in here ... '])    " will never match
-:call add(tl, ['abc\@!', 'abc'])
-:call add(tl, ['abc\@!', 'abd', 'ab'])
-:call add(tl, ['c\@<=test', 'abctest', 'test'])
-:call add(tl, ['c\@<=test', 'abcdtest'])
-:call add(tl, ['c\@<!haha', 'chaha'])
-:call add(tl, ['c\@<!haha', 'abcd haha', 'haha'])
-:call add(tl, ['xyz\@>cd', 'xyzcd', 'xyzcd'])
-:call add(tl, ['xyz\@>cd', 'xyzc'])
-
-:" Test groups of characters
+:" Test groups of characters and submatches
 :call add(tl, ['\(abc\)*', 'abcabcabc', 'abcabcabc', 'abc'])
 :call add(tl, ['\(ab\)\+', 'abababaaaaa', 'ababab', 'ab'])
 :call add(tl, ['\(abaaaaa\)*cd', 'cd', 'cd', ''])
@@ -99,6 +85,10 @@ STARTTEST
 :call add(tl, ['\(test1\)\= \(test2\) \(test4443\)\=', ' test2 test4443 yupiiiiiiiiiii', ' test2 test4443', '', 'test2', 'test4443'])
 :call add(tl, ['\(\(sub1\) hello \(sub 2\)\)', 'asterix sub1 hello sub 2 obelix', 'sub1 hello sub 2', 'sub1 hello sub 2', 'sub1', 'sub 2'])
 :call add(tl, ['\(\(\(yyxxzz\)\)\)', 'abcdddsfiusfyyzzxxyyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz', 'yyxxzz'])
+:call add(tl, ['\v((ab)+|c+)+', 'abcccaba', 'abcccab', 'ab', 'ab'])
+:call add(tl, ['\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
+:call add(tl, ['\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
+:call add(tl, ['\v(a|b*)+', 'aaaa', 'aaaa', ''])
 
 :" Test greedy-ness and lazy-ness
 :call add(tl, ['a\{-2,7}','aaaaaaaaaaaaa', 'aa'])
@@ -111,7 +101,7 @@ STARTTEST
 :" Test Character classes 
 :call add(tl, ['\d\+e\d\d','test 10e23 fd','10e23'])
 
-:" Test character range []
+:" Test collections and character range []
 :call add(tl, ['\v[a]', 'abcd', 'a'])
 :call add(tl, ['a[bcd]', 'abcd', 'ab'])
 :call add(tl, ['a[b-d]', 'acbd', 'ac'])
@@ -135,6 +125,8 @@ STARTTEST
 :call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])							" equivalence classes
 :call add(tl, ['abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
 :call add(tl, ['abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
+:call add(tl, ['\_[0-9]\+', 'asfi9888u', '9888'])
+:call add(tl, ['[0-9\n]\+', 'asfi9888u', '9888'])
 
 :"""" Test recognition of some character classes
 :call add(tl, ['[0-9]', '8', '8'])
@@ -147,18 +139,37 @@ STARTTEST
 :call add(tl, ['[A-Z]', 'a'])
 :call add(tl, ['\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
 
-:"""" TODO: Write tests for \@ features
+:"""" Tests for \@ features
+:call add(tl, ['abc\@=', 'abc', 'ab'])
+:call add(tl, ['abc\@=cd', 'abcd', 'abcd'])
+:call add(tl, ['abc\@=', 'ababc', 'ab'])
+:call add(tl, ['abcd\@=e', 'abcd'])                     " will never match, no matter the input text
+:call add(tl, ['abcd\@=e', 'any text in here ... '])    " will never match
+:call add(tl, ['abc\@!', 'abc'])
+:call add(tl, ['abc\@!', 'abd', 'ab'])
+:call add(tl, ['c\@<=test', 'abctest', 'test'])
+:call add(tl, ['c\@<=test', 'abcdtest'])
+:call add(tl, ['c\@<!haha', 'chaha'])
+:call add(tl, ['c\@<!haha', 'abcd haha', 'haha'])
+:call add(tl, ['\(xyz\)\@>cd', 'xyzcd', 'xyzcd', 'xyz'])
+:call add(tl, ['xyz\@>cd', 'xyzc'])
+
+:"""" Tests for \z features 
+:call add(tl, ['xx \ze test', 'xx '])					" must match after \ze
+:call add(tl, ['abc\zeend', 'oij abcend', 'abc'])
+:call add(tl, ['abc\zsdd', 'ddabcddxyzt', 'dd'])
+:call add(tl, ['aa \zsax', ' ax'])						" must match before \zs
+:call add(tl, ['abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
+:call add(tl, ['\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+
 :"""" TODO: Write more tests for groups, and submatches
 
 :"""" Combining different tests and features
 :call add(tl, ['[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
 :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])							" equivalence classes + not
+:call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
 
 :"""" Debugging tests
-:call add(tl, ['\v((ab)+|c+)+', 'abcccaba', 'abcccab', 'ab', 'ab'])
-:call add(tl, ['\v((ab)|c*)+', 'abcccaba', 'abcccab', '', 'ab'])
-:call add(tl, ['\v(a(c*)+b)+', 'acbababaaa', 'acbabab', 'ab', ''])
-:call add(tl, ['\v(a*)+', 'aaaa', 'aaaa', ''])
 
 :"
 :for t in tl
@@ -171,7 +182,7 @@ STARTTEST
 :  elseif len(t) > 2 && l[0] != t[2]
 :    $put ='ERROR: pat: \"' . t[0] . '\", text: \"' . t[1] . '\", match: \"' . l[0] . '\", expected: \"' . t[2] . '\"'
 :  else
-:    $put ='OK'
+:    $put ='OK - ' . t[0]
 :  endif
 :  if len(l) > 0
 :"   check all the nine submatches
@@ -189,6 +200,8 @@ STARTTEST
 :  endif
 :endfor
 :unlet t tl e l 
+
+
 
 /\%#=1
 :/^Results/,$wq! test.out
