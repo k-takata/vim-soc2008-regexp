@@ -316,7 +316,7 @@ CClink = $(CC)
 # Uncomment this line when you don't want to get the GUI version, although you
 # have GTK, Motif and/or Athena.  Also use --without-x if you don't want X11
 # at all.
-#CONF_OPT_GUI = --disable-gui
+CONF_OPT_GUI = --disable-gui
 
 # Uncomment one of these lines if you have that GUI but don't want to use it.
 # The automatic check will use another one that can be found.
@@ -411,7 +411,7 @@ CClink = $(CC)
 # NETBEANS - NetBeans interface. Only works with Motif, GTK, and gnome.
 # Motif version must have XPM libraries (see |workshop-xpm|).
 # Uncomment this when you do not want the netbeans interface.
-#CONF_OPT_NETBEANS = --disable-netbeans
+CONF_OPT_NETBEANS = --disable-netbeans
 
 # SNIFF - Include support for SNiFF+.
 #CONF_OPT_SNIFF = --enable-sniff
@@ -421,7 +421,7 @@ CClink = $(CC)
 # It's automatically enabled with big features or IME support.
 # Note: Compile on a machine where setlocale() actually works, otherwise the
 # configure tests may fail.
-CONF_OPT_MULTIBYTE = --enable-multibyte
+#CONF_OPT_MULTIBYTE = --enable-multibyte
 
 # NLS - National Language Support
 # Uncomment this when you do not want to support translated messages, even
@@ -467,7 +467,7 @@ CONF_OPT_FEAT = --with-features=huge
 # Also disable the GUI above, otherwise it will be included anyway.
 # When both GUI and X11 have been disabled this may save about 15% of the
 # code and make Vim startup quicker.
-#CONF_OPT_X = --without-x
+CONF_OPT_X = --without-x
 
 # X WINDOWS DIRECTORY - specify X directories
 # If configure can't find you X stuff, or if you have multiple X11 derivatives

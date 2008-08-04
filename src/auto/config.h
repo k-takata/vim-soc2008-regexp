@@ -11,7 +11,7 @@
 /* #undef HAVE_X11 */
 
 /* Define when terminfo support found */
-#define TERMINFO 1
+/* #undef TERMINFO */
 
 /* Define when termcap.h contains ospeed */
 #define HAVE_OSPEED 1
@@ -26,7 +26,7 @@
 /* #undef UP_BC_PC_EXTERN */
 
 /* Define when termcap.h defines outfuntype */
-/* #undef HAVE_OUTFUNTYPE */
+#define HAVE_OUTFUNTYPE 1
 
 /* Define when __DATE__ " " __TIME__ can be used */
 #define HAVE_DATE_TIME 1
@@ -46,7 +46,7 @@
 /* #undef USEMEMCPY */
 
 /* Define when "man -s 2" is to be used */
-#define USEMAN_S 1
+/* #undef USEMAN_S */
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
@@ -79,7 +79,7 @@
 /* #undef rlim_t */
 
 /* Define to `struct sigaltstack' if <signal.h> doesn't define.  */
-/* #undef stack_t */
+#define stack_t struct sigaltstack
 
 /* Define if stack_t has the ss_base field. */
 /* #undef HAVE_SS_BASE */
@@ -97,14 +97,14 @@
 #define HAVE_SVR4_PTYS 1
 
 /* Define to range of pty names to try */
-#define PTYRANGE0 "abcdepqrstuvwxyz"
-#define PTYRANGE1 "0123456789abcdef"
+/* #undef PTYRANGE0 */
+/* #undef PTYRANGE1 */
 
 /* Define mode for pty */
-#define PTYMODE 0620
+/* #undef PTYMODE */
 
 /* Define group for pty */
-#define PTYGROUP 5
+/* #undef PTYGROUP */
 
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void
@@ -144,7 +144,7 @@
 #define HAVE_GETRLIMIT 1
 #define HAVE_GETTIMEOFDAY 1
 #define HAVE_GETWD 1
-#define HAVE_ICONV 1
+/* #undef HAVE_ICONV */
 #define HAVE_NL_LANGINFO_CODESET 1
 #define HAVE_LSTAT 1
 #define HAVE_MEMCMP 1
@@ -161,11 +161,11 @@
 #define HAVE_SETPGID 1
 #define HAVE_SETSID 1
 #define HAVE_SIGACTION 1
-#define HAVE_SIGALTSTACK 1
+/* #undef HAVE_SIGALTSTACK */
 #define HAVE_SIGSET 1
 /* #undef HAVE_SIGSETJMP */
-#define HAVE_SIGSTACK 1
-#define HAVE_SIGVEC 1
+/* #undef HAVE_SIGSTACK */
+/* #undef HAVE_SIGVEC */
 #define HAVE_STRCASECMP 1
 #define HAVE_STRERROR 1
 #define HAVE_STRFTIME 1
@@ -177,15 +177,15 @@
 #define HAVE_ST_BLKSIZE 1
 #define HAVE_SYSCONF 1
 /* #undef HAVE_SYSCTL */
-#define HAVE_SYSINFO 1
-#define HAVE_SYSINFO_MEM_UNIT 1
+/* #undef HAVE_SYSINFO */
+/* #undef HAVE_SYSINFO_MEM_UNIT */
 #define HAVE_TGETENT 1
 #define HAVE_TOWLOWER 1
 #define HAVE_TOWUPPER 1
 #define HAVE_ISWUPPER 1
 #define HAVE_USLEEP 1
 #define HAVE_UTIME 1
-#define HAVE_BIND_TEXTDOMAIN_CODESET 1
+/* #undef HAVE_BIND_TEXTDOMAIN_CODESET */
 
 /* Define if you do not have utime(), but do have the utimes() function. */
 #define HAVE_UTIMES 1
@@ -195,7 +195,7 @@
 #define HAVE_ERRNO_H 1
 #define HAVE_FCNTL_H 1
 /* #undef HAVE_FRAME_H */
-#define HAVE_ICONV_H 1
+/* #undef HAVE_ICONV_H */
 #define HAVE_LANGINFO_H 1
 /* #undef HAVE_LIBC_H */
 #define HAVE_LIBGEN_H 1
@@ -206,11 +206,11 @@
 /* #undef HAVE_PTHREAD_NP_H */
 #define HAVE_PWD_H 1
 #define HAVE_SETJMP_H 1
-#define HAVE_SGTTY_H 1
+/* #undef HAVE_SGTTY_H */
 #define HAVE_STRINGS_H 1
-#define HAVE_STROPTS_H 1
+/* #undef HAVE_STROPTS_H */
 /* #undef HAVE_SYS_ACCESS_H */
-/* #undef HAVE_SYS_ACL_H */
+#define HAVE_SYS_ACL_H 1
 /* #undef HAVE_SYS_DIR_H */
 #define HAVE_SYS_IOCTL_H 1
 /* #undef HAVE_SYS_NDIR_H */
@@ -221,8 +221,8 @@
 #define HAVE_SYS_SELECT_H 1
 #define HAVE_SYS_STATFS_H 1
 /* #undef HAVE_SYS_STREAM_H */
-#define HAVE_SYS_SYSCTL_H 1
-#define HAVE_SYS_SYSINFO_H 1
+/* #undef HAVE_SYS_SYSCTL_H */
+/* #undef HAVE_SYS_SYSINFO_H */
 /* #undef HAVE_SYS_SYSTEMINFO_H */
 #define HAVE_SYS_TIME_H 1
 #define HAVE_SYS_UTSNAME_H 1
@@ -303,7 +303,7 @@
 
 /* Define if you want to add support for ACL */
 /* #undef HAVE_POSIX_ACL */
-/* #undef HAVE_SOLARIS_ACL */
+#define HAVE_SOLARIS_ACL 1
 /* #undef HAVE_AIX_ACL */
 
 /* Define if you want to add support of GPM (Linux console mouse daemon) */
@@ -313,7 +313,7 @@
 /* #undef FEAT_CSCOPE */
 
 /* Define if you want to include multibyte support. */
-#define FEAT_MBYTE 1
+/* #undef FEAT_MBYTE */
 
 /* Define if you want to include fontset support. */
 /* #undef FEAT_XFONTSET */
@@ -343,10 +343,10 @@
 #define HAVE_DLFCN_H 1
 
 /* Define if there is a working gettext(). */
-#define HAVE_GETTEXT 1
+/* #undef HAVE_GETTEXT */
 
 /* Define if _nl_msg_cat_cntr is present. */
-#define HAVE_NL_MSG_CAT_CNTR 1
+/* #undef HAVE_NL_MSG_CAT_CNTR */
 
 /* Define if we have dlopen() */
 #define HAVE_DLOPEN 1
@@ -364,7 +364,7 @@
 /* #undef FEAT_SUN_WORKSHOP */
 
 /* Define if you want to include NetBeans integration. */
-#define FEAT_NETBEANS_INTG 1
+/* #undef FEAT_NETBEANS_INTG */
 
 /* Define default global runtime path */
 /* #undef RUNTIME_GLOBAL */

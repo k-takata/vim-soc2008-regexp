@@ -33,7 +33,7 @@ static int *post_ptr;
 
 
 static int nstate;	/* Number of states in the NFA. */
-static int istate;	/* Index in the state vector, used in new_state */
+static int istate;	/* Index in the state vector, used in new_state() */
 static int nstate_max;	/* Upper bound of estimated number of states. */
 
 static int nfa_just_found_braces = FALSE;  
@@ -984,8 +984,22 @@ nfa_regpiece()
 	    break;
 
 	case Magic('@'):
-	    /* Not supported yet */
-	    return FAIL;
+	    op = no_Magic(getchr());
+	    switch(op)
+	    {
+		case '=':
+		    EMIT(NFA_PREV_ATOM_NO_WIDTH);
+		    break;
+		case '!':
+		case '<':
+		case '>':
+		    /* Not supported yet */
+		    return FAIL;
+		default:
+		    syntax_error = TRUE;
+		    return FAIL;
+	    }
+	    break;
 
 	case Magic('?'):
 	case Magic('='):
@@ -1260,6 +1274,9 @@ static void nfa_set_code(int c)
         case NFA_SPLIT: STRCPY(code, "NFA_SPLIT "); break;
 	case NFA_CONCAT: STRCPY(code, "NFA_CONCAT "); break;
 	case NFA_NEWL:	STRCPY(code, "NFA_NEWL "); break;
+	case NFA_START_ZERO_WIDTH:  STRCPY(code, "NFA_START_ZERO_WIDTH"); break;
+	case NFA_END_ZERO_WIDTH:    STRCPY(code, "NFA_END_ZERO_WIDTH"); break;
+	case NFA_PREV_ATOM_NO_WIDTH:STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
 	case NFA_MOPEN + 0: 
 	case NFA_MOPEN + 1: 
 	case NFA_MOPEN + 2: 
@@ -1453,7 +1470,6 @@ new_state(c, out, out1)
     s->lastlist = 0;
     s->lastthread = NULL;
     s->visits = 0;
-    s->negated = FALSE;
 
     return s;
 }
@@ -1710,7 +1726,30 @@ post2nfa(postfix, end, nfa_calc_size)
 		break;
 	    }
 	    s = new_state(NFA_SKIP_CHAR, NULL, NULL);
+	    if (s == NULL)
+		return NULL;
 	    PUSH(frag(s, list1(&s->out)));
+	    break;
+
+	/* The \@= operator: match the preceding atom with 0 width.
+	 * START_ZERO_WIDTH->out is the next node in the NFA.
+	 * START_ZERO_WIDTH->out1 is the matching END_ZERO_WIDTH node
+	 */
+	case NFA_PREV_ATOM_NO_WIDTH:
+	    if (nfa_calc_size == TRUE)
+	    {
+		nstate += 2;
+		break;
+	    }
+	    e = POP();
+	    s1 = new_state(NFA_END_ZERO_WIDTH, NULL, NULL);
+	    if (s1 == NULL)
+		return NULL;
+	    patch(e.out, s1);
+	    s = new_state(NFA_START_ZERO_WIDTH, e.start, NULL);
+	    if (s == NULL)
+		return NULL;
+	    PUSH(frag(s, list1(&s1->out)));
 	    break;
 
 	case NFA_MOPEN + 0:	/* Submatch */
@@ -1749,8 +1788,6 @@ post2nfa(postfix, end, nfa_calc_size)
 	    s = new_state(*p, NULL, NULL);
     	    if (s == NULL)
     	        return NULL;
-	    if (*(p+1) && (*(p+1) == NFA_NOT))
-		s->negated = TRUE;
     	    PUSH(frag(s, list1(&s->out)));
     	    break;
 	
@@ -1785,11 +1822,20 @@ post2nfa(postfix, end, nfa_calc_size)
 #undef PUSH
 }
 
+/* Char pointer stack, used in thread_T */
+struct cstack
+{
+    char_u	*input;
+    struct cstack *next;
+};
+typedef struct cstack cstack_T;
+
 /* thread_T contains runtime information of a NFA state */
 struct thread
 {
     nfa_state_T	*state;
-    regsub_T	sub;
+    regsub_T	sub;		/* submatch info */
+    cstack_T	*st;		/* for \@= and \&: stack with input positions */
 };
 
 typedef struct
@@ -1804,9 +1850,10 @@ static int	listid;
 List	*thislist, *nextlist, *neglist;
 
     static void
-addstate(l, state, m, off, lid, match)
+addstate(l, state, cst, m, off, lid, match)
     List		*l;	/* runtime state list */
     nfa_state_T		*state;	/* state to update */
+    cstack_T		*cst;	/* stack of input positions */
     regsub_T		*m;	/* pointers to subexpressions */
     int			off;
     int			lid;
@@ -1814,6 +1861,8 @@ addstate(l, state, m, off, lid, match)
 {
     regsub_T		save;
     int			subidx = 0;
+    thread_T		*t;
+    cstack_T		*st2;
 
     if (l == NULL || state == NULL) /* never happen */
 	return;
@@ -1831,6 +1880,7 @@ addstate(l, state, m, off, lid, match)
 	|| (state->c >= '\300' && state->c <= '\377')				/* equivalence classes */
 	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
 	|| (state->c >= NFA_FIRST_NL && state->c <= NFA_LAST_NL)		/* \n + \a, \d etc */
+	|| (state->c == NFA_START_ZERO_WIDTH) || (state->c == NFA_END_ZERO_WIDTH)
 	)
     {	
 	if (state->lastlist == lid)
@@ -1844,6 +1894,8 @@ addstate(l, state, m, off, lid, match)
 	    state->lastthread = &l->t[l->n++];
 	    state->lastthread->state = state;
 	    state->lastthread->sub = *m;
+	    state->lastthread->st = cst;
+	    t = state->lastthread;
 	}
     }
 #ifdef ENABLE_LOG_FILE
@@ -1860,17 +1912,17 @@ addstate(l, state, m, off, lid, match)
 
 	case NFA_SPLIT:
 	    
-	    addstate(l, state->out, m, off, lid, match);
-	    addstate(l, state->out1, m, off, lid, match);
+	    addstate(l, state->out, cst, m, off, lid, match);
+	    addstate(l, state->out1, cst, m, off, lid, match);
 	    break;
 	
 	case NFA_SKIP_CHAR:
-	    addstate(l, state->out, m, off, lid, match);
+	    addstate(l, state->out, cst, m, off, lid, match);
 	    break;
 
 	case NFA_END_NEG_RANGE:
 	    /* End a [^xyz....] construction: accept any char and advance */
-//	    addstate(l, state->out, m, off, lid, match);
+//	    addstate(l, state->out, cst, m, off, lid, match);
 	    break;
 
 	case NFA_NOT:
@@ -1879,6 +1931,43 @@ addstate(l, state, m, off, lid, match)
 	fprintf(f, "\n\n>>> E999: Added state NFA_NOT to a list ... Something went \
 wrong ! Why wasn't it processed already? \n\n");
 #endif
+
+	case NFA_START_ZERO_WIDTH:
+#ifdef ENABLE_LOG_FILE
+    fprintf(f, "\t> Start of zero-width nodes... Input text is \"%s\"\n", reginput);
+#endif
+	    /* remember current input position */
+	    st2 = (cstack_T *) lalloc(sizeof(cstack_T), TRUE);
+	    if (st2 == NULL)
+	    {
+		EMSG("E999: (NFA) Not enough memory available !");
+		return;
+	    }
+	    /* Save input position reginput. Subtract 1 so that
+	     * when restoring, the first character to be read will be 
+	     * the same as now */
+	    st2->input = reginput - 1;
+	    st2->next = cst;
+	    addstate(l, state->out, st2, m, off, lid, match);
+	    break;
+
+	case NFA_END_ZERO_WIDTH:
+#ifdef ENABLE_LOG_FILE
+fprintf(f, "\t> End of zero-width nodes... Input text is \"%s\"\n", reginput);
+fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st->input);
+#endif
+	    /* restore position in input string */
+	    if (t->st == NULL)
+	    {
+		EMSG("E999: (NFA) Error using zero-width operator \\@");
+		return;
+	    }
+	    reginput = t->st->input;
+	    st2 = t->st;
+	    t->st = t->st->next;
+	    vim_free(st2);
+	    addstate(l, state->out, cst, m, off, lid, match);
+	    break;
 
 	case NFA_MOPEN + 0:
 	case NFA_MOPEN + 1:
@@ -1906,7 +1995,7 @@ wrong ! Why wasn't it processed already? \n\n");
 		m->start[subidx] = reginput + off;
 	    }
 
-	    addstate(l, state->out, m, off, lid, match);
+	    addstate(l, state->out, cst, m, off, lid, match);
 
 	    if (REG_MULTI)
 	    {
@@ -1946,7 +2035,7 @@ wrong ! Why wasn't it processed already? \n\n");
 		m->end[subidx] = reginput + off;
 	    }
 
-	    addstate(l, state->out, m, off, lid, match);
+	    addstate(l, state->out, cst, m, off, lid, match);
 
 	    if (REG_MULTI)
 	    {
@@ -2099,7 +2188,7 @@ nfa_regmatch(start, submatch)
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "(---) STARTSTATE\n");
 #endif
-    addstate(thislist, start, &m, 0, listid, &match);
+    addstate(thislist, start, NULL, &m, 0, listid, &match);
 
     /* run for each character */
     do {
@@ -2158,15 +2247,21 @@ again:
 #define	ADD_POS_NEG_STATE()				    \
 		/* Check if current char matches */	    \
 		if (negate == FALSE && result == OK)	    \
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);	\
+		    addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);	\
 		else					    \
 		/* Check if current char doesn't match */   \
 		if (negate == TRUE && result != OK)	    \
-		    addstate(neglist, t->state->out->out, &t->sub, n, listid+1, &match);
+		    addstate(neglist, t->state->out->out, t->st, &t->sub, n, listid+1, &match);
 
 	    switch (t->state->c)
 	    {
 	    case NFA_MATCH:
+		if (t->st != NULL)
+		{
+		    /* When I find a match, there should be no 
+		     * dangling pointers to go back in the input string */
+		    EMSG("E999: (NFA) Match found, but something went wrong (zero-width operators) ");
+		}
 		match = TRUE;
 		*submatch = t->sub;
 #ifdef ENABLE_LOG_FILE
@@ -2182,12 +2277,12 @@ again:
 
 	    case NFA_BOL:
 		if (reginput == regline)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
 		break;
 
 	    case NFA_EOL:
 		if (c == NUL)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
 		break;
 
 	    case NFA_BOW:
@@ -2215,7 +2310,7 @@ again:
 			bol = FALSE;
 		}
 		if (bol)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
 		break;
 	    }
 
@@ -2244,7 +2339,7 @@ again:
 			eol = FALSE;
 		}
 		if (eol)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
 		break;
 	    }
 
@@ -2257,9 +2352,10 @@ again:
 			reg_nextline();
 			reginput_updated = TRUE;
 		    }
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		    addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
 		}
 		break;
+
 
 	    case NFA_CLASS_ALNUM:
 	    case NFA_CLASS_ALPHA:
@@ -2285,13 +2381,13 @@ again:
 		/* This follows a series of negated nodes, like: 
 		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc */
 		if (c > 0)
-		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		  addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
 		break;
 
 	    case NFA_ANY:	    
 		/* Any printable char, not just any char. '\0' (end of input) must not match */
 		if (c > 0)
-		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		  addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
 		break;
 
 /* Character classes like \a for alpha, \d for digit etc */
@@ -2445,7 +2541,7 @@ again:
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "(---) STARTSTATE\n");
 #endif
-	    addstate(nextlist, start, &m, n, listid+1, &match);
+	    addstate(nextlist, start, NULL, &m, n, listid+1, &match);
 	}
 
         if (reginput_updated)
@@ -2599,6 +2695,8 @@ nfa_regexec_both(line, col)
     if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
 	goto theend;
 
+   // list[0].st = list[1].st = list[2].st = NULL;
+
     vim_memset(list[0].t, 0, size);
     vim_memset(list[1].t, 0, size);
     vim_memset(list[2].t, 0, size);
@@ -2618,9 +2716,8 @@ theend:
     vim_free(list[0].t);
     vim_free(list[1].t);
     vim_free(list[2].t);
-    list[0].t = NULL;
-    list[1].t = NULL;
-    list[2].t = NULL;
+    list[0].t = list[1].t = list[2].t = NULL;
+//    list[0].st = list[1].st = list[2].st = NULL;
 
     return retval;
 }

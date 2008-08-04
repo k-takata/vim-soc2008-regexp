@@ -41,7 +41,7 @@
 #include "vim.h"
 
 
-#undef DEBUG
+//#undef DEBUG
 //#define BT_REGEXP_DUMP		    /* show/save debugging data when BT engine is used */
 //#define BT_REGEXP_LOG		    /* save the data to a file instead of displaying it */
 
@@ -256,6 +256,10 @@ NFA_END_NEG_RANGE,	    /* Used when expanding [^ab] */
     NFA_BOW,
     NFA_EOW,
     NFA_NEWL,
+
+    NFA_START_ZERO_WIDTH,
+    NFA_END_ZERO_WIDTH,
+    NFA_PREV_ATOM_NO_WIDTH,
 
     NFA_MOPEN,
     NFA_MCLOSE = NFA_MOPEN + NSUBEXP,
