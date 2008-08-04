@@ -41,7 +41,7 @@
 #include "vim.h"
 
 
-//#undef DEBUG
+#undef DEBUG
 //#define BT_REGEXP_DUMP		    /* show/save debugging data when BT engine is used */
 //#define BT_REGEXP_LOG		    /* save the data to a file instead of displaying it */
 
@@ -238,10 +238,10 @@
 /* For NFA. TODO(RE) is there a way of sharing definitions above? */
 enum
 {
-NFA_SPLIT = -1024,
-NFA_MATCH,
-NFA_SKIP_CHAR,		    /* matches a 0-length char */
-NFA_END_NEG_RANGE,	    /* Used when expanding [^ab] */
+    NFA_SPLIT = -1024,
+    NFA_MATCH,
+    NFA_SKIP_CHAR,		    /* matches a 0-length char */
+    NFA_END_NEG_RANGE,		    /* Used when expanding [^ab] */
 
     NFA_CONCAT,
     NFA_OR,
@@ -249,17 +249,24 @@ NFA_END_NEG_RANGE,	    /* Used when expanding [^ab] */
     NFA_PLUS,
     NFA_QUEST,
     NFA_QUEST_NONGREEDY,
-    NFA_NOT,	    /* used for [^ab] negated char ranges */
+    NFA_NOT,			    /* used for [^ab] negated char ranges */
 
     NFA_BOL,
     NFA_EOL,
     NFA_BOW,
     NFA_EOW,
     NFA_NEWL,
+    NFA_ZSTART,
+    NFA_ZEND,
 
     NFA_START_ZERO_WIDTH,
     NFA_END_ZERO_WIDTH,
+
     NFA_PREV_ATOM_NO_WIDTH,
+    NFA_PREV_ATOM_NO_WIDTH_NEG,
+    NFA_PREV_ATOM_JUST_BEFORE,
+    NFA_PREV_ATOM_JUST_BEFORE_NEG,
+    NFA_PREV_ATOM_LIKE_PATTERN,
 
     NFA_MOPEN,
     NFA_MCLOSE = NFA_MOPEN + NSUBEXP,
@@ -7433,6 +7440,11 @@ static int regexp_engine;
 #define	    AUTOMATIC_ENGINE	0
 #define	    BACKTRACKING_ENGINE	1
 #define	    NFA_ENGINE		2
+static char_u regname[][30] = {
+		    "AUTOMATIC Regexp Engine", 
+		    "BACKTACKING Regexp Engine",
+		    "NFA Regexp Engine"
+			    };
 
 /*
  * vim_regcomp() - compile a regular expression into internal code
@@ -7456,7 +7468,7 @@ vim_regcomp(expr, re_flags)
 		regexp_engine = expr[4] - '0';
 		expr += 5;
 		regparse += 5;
-		EMSG2("New regexp mode selected: %d", regexp_engine);
+		EMSG3("New regexp mode selected (%d): %s", regexp_engine, regname[newengine]);
 	    }
 	    else
 	    {
@@ -7465,6 +7477,10 @@ vim_regcomp(expr, re_flags)
 		regexp_engine = AUTOMATIC_ENGINE;
 	    }
 	}
+#ifdef DEBUG
+    nfa_regengine.expr = expr;
+    bt_regengine.expr = expr;
+#endif
     // First try the NFA engine
     if (regexp_engine != BACKTRACKING_ENGINE)
         prog = nfa_regengine.regcomp(expr, re_flags);

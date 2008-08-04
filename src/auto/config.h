@@ -11,7 +11,7 @@
 /* #undef HAVE_X11 */
 
 /* Define when terminfo support found */
-/* #undef TERMINFO */
+#define TERMINFO 1
 
 /* Define when termcap.h contains ospeed */
 #define HAVE_OSPEED 1
@@ -26,7 +26,7 @@
 /* #undef UP_BC_PC_EXTERN */
 
 /* Define when termcap.h defines outfuntype */
-#define HAVE_OUTFUNTYPE 1
+/* #undef HAVE_OUTFUNTYPE */
 
 /* Define when __DATE__ " " __TIME__ can be used */
 #define HAVE_DATE_TIME 1
@@ -46,7 +46,7 @@
 /* #undef USEMEMCPY */
 
 /* Define when "man -s 2" is to be used */
-/* #undef USEMAN_S */
+#define USEMAN_S 1
 
 /* Define to empty if the keyword does not work.  */
 /* #undef const */
@@ -79,7 +79,7 @@
 /* #undef rlim_t */
 
 /* Define to `struct sigaltstack' if <signal.h> doesn't define.  */
-#define stack_t struct sigaltstack
+/* #undef stack_t */
 
 /* Define if stack_t has the ss_base field. */
 /* #undef HAVE_SS_BASE */
@@ -97,14 +97,14 @@
 #define HAVE_SVR4_PTYS 1
 
 /* Define to range of pty names to try */
-/* #undef PTYRANGE0 */
-/* #undef PTYRANGE1 */
+#define PTYRANGE0 "abcdepqrstuvwxyz"
+#define PTYRANGE1 "0123456789abcdef"
 
 /* Define mode for pty */
-/* #undef PTYMODE */
+#define PTYMODE 0620
 
 /* Define group for pty */
-/* #undef PTYGROUP */
+#define PTYGROUP 5
 
 /* Define as the return type of signal handlers (int or void).  */
 #define RETSIGTYPE void
@@ -144,7 +144,7 @@
 #define HAVE_GETRLIMIT 1
 #define HAVE_GETTIMEOFDAY 1
 #define HAVE_GETWD 1
-/* #undef HAVE_ICONV */
+#define HAVE_ICONV 1
 #define HAVE_NL_LANGINFO_CODESET 1
 #define HAVE_LSTAT 1
 #define HAVE_MEMCMP 1
@@ -161,11 +161,11 @@
 #define HAVE_SETPGID 1
 #define HAVE_SETSID 1
 #define HAVE_SIGACTION 1
-/* #undef HAVE_SIGALTSTACK */
+#define HAVE_SIGALTSTACK 1
 #define HAVE_SIGSET 1
 /* #undef HAVE_SIGSETJMP */
-/* #undef HAVE_SIGSTACK */
-/* #undef HAVE_SIGVEC */
+#define HAVE_SIGSTACK 1
+#define HAVE_SIGVEC 1
 #define HAVE_STRCASECMP 1
 #define HAVE_STRERROR 1
 #define HAVE_STRFTIME 1
@@ -177,15 +177,15 @@
 #define HAVE_ST_BLKSIZE 1
 #define HAVE_SYSCONF 1
 /* #undef HAVE_SYSCTL */
-/* #undef HAVE_SYSINFO */
-/* #undef HAVE_SYSINFO_MEM_UNIT */
+#define HAVE_SYSINFO 1
+#define HAVE_SYSINFO_MEM_UNIT 1
 #define HAVE_TGETENT 1
 #define HAVE_TOWLOWER 1
 #define HAVE_TOWUPPER 1
 #define HAVE_ISWUPPER 1
 #define HAVE_USLEEP 1
 #define HAVE_UTIME 1
-/* #undef HAVE_BIND_TEXTDOMAIN_CODESET */
+#define HAVE_BIND_TEXTDOMAIN_CODESET 1
 
 /* Define if you do not have utime(), but do have the utimes() function. */
 #define HAVE_UTIMES 1
@@ -195,7 +195,7 @@
 #define HAVE_ERRNO_H 1
 #define HAVE_FCNTL_H 1
 /* #undef HAVE_FRAME_H */
-/* #undef HAVE_ICONV_H */
+#define HAVE_ICONV_H 1
 #define HAVE_LANGINFO_H 1
 /* #undef HAVE_LIBC_H */
 #define HAVE_LIBGEN_H 1
@@ -206,9 +206,9 @@
 /* #undef HAVE_PTHREAD_NP_H */
 #define HAVE_PWD_H 1
 #define HAVE_SETJMP_H 1
-/* #undef HAVE_SGTTY_H */
+#define HAVE_SGTTY_H 1
 #define HAVE_STRINGS_H 1
-/* #undef HAVE_STROPTS_H */
+#define HAVE_STROPTS_H 1
 /* #undef HAVE_SYS_ACCESS_H */
 #define HAVE_SYS_ACL_H 1
 /* #undef HAVE_SYS_DIR_H */
@@ -221,8 +221,8 @@
 #define HAVE_SYS_SELECT_H 1
 #define HAVE_SYS_STATFS_H 1
 /* #undef HAVE_SYS_STREAM_H */
-/* #undef HAVE_SYS_SYSCTL_H */
-/* #undef HAVE_SYS_SYSINFO_H */
+#define HAVE_SYS_SYSCTL_H 1
+#define HAVE_SYS_SYSINFO_H 1
 /* #undef HAVE_SYS_SYSTEMINFO_H */
 #define HAVE_SYS_TIME_H 1
 #define HAVE_SYS_UTSNAME_H 1
@@ -245,7 +245,7 @@
 /* #undef HAVE_XM_NOTEBOOK_H */
 /* #undef HAVE_X11_XPM_H */
 /* #undef HAVE_X11_XMU_EDITRES_H */
-/* #undef HAVE_X11_SM_SMLIB_H */
+#define HAVE_X11_SM_SMLIB_H 1
 
 /* Define to the type of the XpmAttributes type. */
 /* #undef XPMATTRIBUTES_TYPE */
@@ -302,8 +302,8 @@
 /* #undef FEAT_SNIFF */
 
 /* Define if you want to add support for ACL */
-/* #undef HAVE_POSIX_ACL */
-#define HAVE_SOLARIS_ACL 1
+#define HAVE_POSIX_ACL 1
+/* #undef HAVE_SOLARIS_ACL */
 /* #undef HAVE_AIX_ACL */
 
 /* Define if you want to add support of GPM (Linux console mouse daemon) */
@@ -343,10 +343,10 @@
 #define HAVE_DLFCN_H 1
 
 /* Define if there is a working gettext(). */
-/* #undef HAVE_GETTEXT */
+#define HAVE_GETTEXT 1
 
 /* Define if _nl_msg_cat_cntr is present. */
-/* #undef HAVE_NL_MSG_CAT_CNTR */
+#define HAVE_NL_MSG_CAT_CNTR 1
 
 /* Define if we have dlopen() */
 #define HAVE_DLOPEN 1

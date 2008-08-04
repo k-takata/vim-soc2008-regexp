@@ -27,6 +27,9 @@ FILE	    *f;
  * should have been handled by the NFA engine. Syntax errors are handled by NFA engine. */
 static int syntax_error = FALSE;
 
+/* NFA regexp \ze operator. TODO(RE) Maybe this should be a flag? */
+static int nfa_has_zend = FALSE;
+
 static int *post_start;  /* holds the postfix form of r.e. */
 static int *post_end;
 static int *post_ptr;
@@ -68,6 +71,7 @@ nfa_regcomp_start(expr, re_flags)
     vim_memset(post_start, 0, postfix_size);
     post_ptr = post_start;
     post_end = post_start + postfix_size;
+    nfa_has_zend = FALSE;
 
     regcomp_start(expr, re_flags);
 
@@ -596,6 +600,22 @@ nfa_regatom()
 		      return FAIL;
 
 		case Magic('z'):
+		    c = no_Magic(getchr());
+		    switch (c)
+		    {
+			case 's':
+			    EMIT(NFA_ZSTART);
+			    break;
+			case 'e':
+			    EMIT(NFA_ZEND);
+			    nfa_has_zend = TRUE;
+			    break;
+			default:
+			    syntax_error = TRUE;
+			    EMSG_RET_FAIL("E999: Unknown operator following '\\z'");
+		    }
+		    break;
+
 		case Magic('%'):
 		      /* not supported yet */
 		      return FAIL;
@@ -1778,7 +1798,9 @@ post2nfa(postfix, end, nfa_calc_size)
 	    patch(e.out, s1);
 	    PUSH(frag(s, list1(&s1->out)));
 	    break;
-
+    
+	case NFA_ZSTART:
+	case NFA_ZEND:
 	default:	/* Operands */
 	    if (nfa_calc_size == TRUE)
 	    {
@@ -1946,7 +1968,7 @@ wrong ! Why wasn't it processed already? \n\n");
 	    /* Save input position reginput. Subtract 1 so that
 	     * when restoring, the first character to be read will be 
 	     * the same as now */
-	    st2->input = reginput - 1;
+	    st2->input = reginput;
 	    st2->next = cst;
 	    addstate(l, state->out, st2, m, off, lid, match);
 	    break;
@@ -1966,7 +1988,7 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 	    st2 = t->st;
 	    t->st = t->st->next;
 	    vim_free(st2);
-	    addstate(l, state->out, cst, m, off, lid, match);
+	    addstate(l, state->out, t->st, m, off, lid, match);
 	    break;
 
 	case NFA_MOPEN + 0:
@@ -1979,7 +2001,10 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 	case NFA_MOPEN + 7:
 	case NFA_MOPEN + 8:
 	case NFA_MOPEN + 9:
+	case NFA_ZSTART:
 	    subidx = state->c - NFA_MOPEN;
+	    if (state->c == NFA_ZSTART)
+		subidx = 0;
 
 	    if (REG_MULTI)
 	    {
@@ -2010,6 +2035,11 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 	    break;
 
 	case NFA_MCLOSE + 0:
+	    if (nfa_has_zend == TRUE)
+	    {
+		addstate(l, state->out, cst, m, off, lid, match);
+		break;
+	    }
 	case NFA_MCLOSE + 1:
 	case NFA_MCLOSE + 2:
 	case NFA_MCLOSE + 3:
@@ -2019,7 +2049,10 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 	case NFA_MCLOSE + 7:
 	case NFA_MCLOSE + 8:
 	case NFA_MCLOSE + 9:
+	case NFA_ZEND:
 	    subidx = state->c - NFA_MCLOSE;
+	    if (state->c == NFA_ZEND)
+		subidx = 0;
 
 	    if (REG_MULTI)
 	    {
@@ -2176,9 +2209,15 @@ nfa_regmatch(start, submatch)
 
 #ifdef ENABLE_LOG_FILE
     f = fopen("log_nfarun.log","a");
-    fprintf(f, "\n\n\n\n\n\n=======================================================\n");
-    fprintf(f, "=======================================================\n\n\n\n\n\n\n");
-    nfa_print_state(f, start, 0);
+    if (f)
+    {
+	fprintf(f, "\n\n\n\n\n\n\t\t=======================================================\n");
+	fprintf(f, "		=======================================================\n");
+	fprintf(f, "\tCompiled regexp \"%s\" \n", nfa_regengine.expr);
+	fprintf(f, "\tInput text is \"%s\" \n", reginput);
+	fprintf(f, "		=======================================================\n\n\n\n\n\n\n");
+	nfa_print_state(f, start, 0);
+    }
 #endif
 
     thislist = &list[0];
@@ -2355,7 +2394,6 @@ again:
 		    addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
 		}
 		break;
-
 
 	    case NFA_CLASS_ALNUM:
 	    case NFA_CLASS_ALPHA:
@@ -2764,7 +2802,7 @@ nfa_regcomp(expr, re_flags)
     FILE *f = fopen("log_nfarun.log", "a");
     if (f)
     {
-	fprintf(f, "\n***************\n\n\n\nCompiling regexp \"%s\" ... hold on !\n\n\n", expr);
+	fprintf(f, "\n*****************************\n\n\n\n\tCompiling regexp \"%s\" ... hold on !\n", expr);
 	fclose(f);
     }
 #endif
