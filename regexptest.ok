@@ -125,3 +125,4 @@ OK - \v(a \zsif .*){2}
 OK - [[:alpha:]]\{-2,6}
 OK - [^[=a=]]\+
 OK - [[:alpha:][=a=]]\+
+OK - abc\&ab

@@ -9,7 +9,7 @@ VIMPROG = /soc2008/vim-new/src/vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
-VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
+# VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
 
 SCRIPTS = 	\
 			test39.out test42.out test46.out \

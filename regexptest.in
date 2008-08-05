@@ -170,6 +170,7 @@ STARTTEST
 :call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
 
 :"""" Debugging tests
+:call add(tl, ['abc\&ab', 'xabcd', 'ab'])
 
 :"
 :for t in tl
