@@ -47,7 +47,7 @@ clean:
 
 test1.out: test1.in
 	-rm -f $*.failed tiny.vim small.vim mbyte.vim test.ok X* viminfo
-	$(VALGRIND) $(VIMPROG) -u unix.vim -U NONE --noplugin -s dotest.in $*.in
+	$(VALGRIND) $(VIMPROG) -u unix.vim -u NONE --noplugin -s dotest.in $*.in
 	@/bin/sh -c "if diff test.out $*.ok; \
 		then mv -f test.out $*.out; \
 		else echo; \
@@ -60,7 +60,7 @@ test1.out: test1.in
 	cp $*.ok test.ok
 	# Sleep a moment to avoid that the xterm title is messed up
 	@-sleep .2
-	-$(VALGRIND) $(VIMPROG) -u unix.vim -U NONE --noplugin -s dotest.in $*.in
+	-$(VALGRIND) $(VIMPROG) -u unix.vim -u NONE --noplugin -s dotest.in $*.in
 	@/bin/sh -c "if test -f test.out; then\
 		  if diff test.out $*.ok; \
 		  then mv -f test.out $*.out; \

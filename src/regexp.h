@@ -87,7 +87,7 @@ typedef struct
     regprog_T		regprog;
     nfa_state_T		*start;
     int			nstate;
-    nfa_state_T		state[0];	/* actually longer.. */
+    nfa_state_T		state[0];
 } nfa_regprog_T;
 
 /*

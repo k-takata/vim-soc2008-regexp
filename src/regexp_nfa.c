@@ -3,8 +3,6 @@
 /* File nfa_regexp.c is included automa[gt]ically in regexp.c, at the end. */
 
 
-#define ENABLE_CHAR_RANGE	/* Comment this out to disable the NFA implementation of  [ ] */
-
 #ifdef DEBUG
 #define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
 #endif
@@ -622,9 +620,6 @@ nfa_regatom()
 
 collection:
 		case Magic('['):
-#ifndef ENABLE_CHAR_RANGE
-		    return FAIL;
-#endif
 		    /* 
 		     * Glue is emitted between several atoms from the []. 
 		     * It is either NFA_OR, or NFA_CONCAT. 
@@ -958,6 +953,7 @@ nfa_regpiece()
     int		c2;
     int		*old_post_ptr, *my_post_start;
     int		old_regnpar;
+    int		quest;
 
     nfa_just_found_braces = FALSE;
     /* Save the current position in the regexp, so that we can use it if <atom>{m,n} is next. */
@@ -1070,7 +1066,7 @@ nfa_regpiece()
 	    new_regparse = regparse;	/* Save pos after the repeated atom and the \{} */
 	    
 	    new_regparse = regparse;
-	    int quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);    /* to emit a \? */
+	    quest = (greedy == TRUE? NFA_QUEST : NFA_QUEST_NONGREEDY);    /* to emit a \? */
 	    for (i = 0; i < maxval; i++)
 	    {
 		regparse = old_regparse;	/* Goto beginning of the repeated atom */
@@ -1197,11 +1193,36 @@ nfa_regconcat()
     static int
 nfa_regbranch()
 {
+int	    ch;
+char_u	    *old_reginput, *old_regparse;
+int	    *old_post_ptr;
+int	    old_regnpar;
+
+    old_reginput = reginput;
+    old_regparse = regparse;
+    old_regnpar  = regnpar;
+    old_post_ptr = post_ptr;
+    
+    /* First branch, possibly the only one */
     if (nfa_regconcat() == FAIL)
 	return FAIL;
-    if (peekchr() == Magic('&'))
-	/* not supported yet */
-	return FAIL;
+
+    ch = peekchr();
+    /* Try next branches */
+    while (ch == Magic('&'))
+    {
+	skipchr();
+	EMIT(NFA_MOPEN_INVISIBLE);
+	EMIT(NFA_PREV_ATOM_NO_WIDTH);
+	old_post_ptr = post_ptr;
+	if (nfa_regconcat() == FAIL)
+	    return FAIL;
+	/* if last concat is empty, skip a char */
+	if (old_post_ptr == post_ptr)
+	    EMIT(NFA_SKIP_CHAR);
+	EMIT(NFA_CONCAT);
+	ch = peekchr();
+    }
 
     return OK;
 }
@@ -1290,13 +1311,19 @@ static void nfa_set_code(int c)
     STRCPY(code, "");
     switch (c)
     {
-        case NFA_MATCH: STRCPY(code, "NFA_MATCH "); break;
-        case NFA_SPLIT: STRCPY(code, "NFA_SPLIT "); break;
-	case NFA_CONCAT: STRCPY(code, "NFA_CONCAT "); break;
-	case NFA_NEWL:	STRCPY(code, "NFA_NEWL "); break;
-	case NFA_START_ZERO_WIDTH:  STRCPY(code, "NFA_START_ZERO_WIDTH"); break;
-	case NFA_END_ZERO_WIDTH:    STRCPY(code, "NFA_END_ZERO_WIDTH"); break;
-	case NFA_PREV_ATOM_NO_WIDTH:STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
+        case NFA_MATCH:	    STRCPY(code, "NFA_MATCH "); break;
+        case NFA_SPLIT:	    STRCPY(code, "NFA_SPLIT "); break;
+	case NFA_CONCAT:    STRCPY(code, "NFA_CONCAT "); break;
+	case NFA_NEWL:	    STRCPY(code, "NFA_NEWL "); break;
+	case NFA_ZSTART:    STRCPY(code, "NFA_ZSTART"); break;
+	case NFA_ZEND:	    STRCPY(code, "NFA_ZEND"); break;
+
+	case NFA_PREV_ATOM_NO_WIDTH:	STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
+	case NFA_MOPEN_INVISIBLE:	STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
+	case NFA_MCLOSE_INVISIBLE:	STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
+	case NFA_START_INVISIBLE:	STRCPY(code, "NFA_START_INVISIBLE"); break;
+	case NFA_END_INVISIBLE:		STRCPY(code, "NFA_END_INVISIBLE"); break;
+
 	case NFA_MOPEN + 0: 
 	case NFA_MOPEN + 1: 
 	case NFA_MOPEN + 2: 
@@ -1323,14 +1350,14 @@ static void nfa_set_code(int c)
 	    STRCPY(code, "NFA_MCLOSE(x)");
 	    code[11] = c - NFA_MCLOSE + '0';
 	    break;
-	case NFA_EOL: STRCPY(code, "NFA_EOL "); break;
-	case NFA_BOL: STRCPY(code, "NFA_BOL "); break;
-	case NFA_STAR: STRCPY(code, "NFA_STAR "); break;
-	case NFA_PLUS: STRCPY(code, "NFA_PLUS "); break;
-	case NFA_NOT:	STRCPY(code, "NFA_NOT "); break;
-	case NFA_SKIP_CHAR: STRCPY(code, "NFA_SKIP_CHAR"); break;
-	case NFA_OR: STRCPY(code, "NFA_OR"); break;
-	case NFA_QUEST:	STRCPY(code, "NFA_QUEST"); break;
+	case NFA_EOL:		STRCPY(code, "NFA_EOL "); break;
+	case NFA_BOL:		STRCPY(code, "NFA_BOL "); break;
+	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
+	case NFA_PLUS:		STRCPY(code, "NFA_PLUS "); break;
+	case NFA_NOT:		STRCPY(code, "NFA_NOT "); break;
+	case NFA_SKIP_CHAR:	STRCPY(code, "NFA_SKIP_CHAR"); break;
+	case NFA_OR:		STRCPY(code, "NFA_OR"); break;
+	case NFA_QUEST:		STRCPY(code, "NFA_QUEST"); break;
 	case NFA_QUEST_NONGREEDY: STRCPY(code, "NFA_QUEST_NON_GREEDY"); break;
 	case NFA_END_NEG_RANGE:	STRCPY(code, "NFA_END_NEG_RANGE"); break;
 	case NFA_CLASS_ALNUM:	STRCPY(code, "NFA_CLASS_ALNUM"); break;
@@ -1352,31 +1379,31 @@ static void nfa_set_code(int c)
         
 	case NFA_ANY:	STRCPY(code, "NFA_ANY"); break;
 	case NFA_IDENT:	STRCPY(code, "NFA_IDENT"); break;
-	case NFA_SIDENT:	STRCPY(code, "NFA_SIDENT"); break;
+	case NFA_SIDENT:STRCPY(code, "NFA_SIDENT"); break;
 	case NFA_KWORD:	STRCPY(code, "NFA_KWORD"); break;
-	case NFA_SKWORD:	STRCPY(code, "NFA_SKWORD"); break;
+	case NFA_SKWORD:STRCPY(code, "NFA_SKWORD"); break;
 	case NFA_FNAME:	STRCPY(code, "NFA_FNAME"); break;
-	case NFA_SFNAME:	STRCPY(code, "NFA_SFNAME"); break;
+	case NFA_SFNAME:STRCPY(code, "NFA_SFNAME"); break;
 	case NFA_PRINT:	STRCPY(code, "NFA_PRINT"); break;
-	case NFA_SPRINT:	STRCPY(code, "NFA_SPRINT"); break;
+	case NFA_SPRINT:STRCPY(code, "NFA_SPRINT"); break;
 	case NFA_WHITE:	STRCPY(code, "NFA_WHITE"); break;
-	case NFA_NWHITE:	STRCPY(code, "NFA_NWHITE"); break;
+	case NFA_NWHITE:STRCPY(code, "NFA_NWHITE"); break;
 	case NFA_DIGIT:	STRCPY(code, "NFA_DIGIT"); break;
-	case NFA_NDIGIT:	STRCPY(code, "NFA_NDIGIT"); break;
+	case NFA_NDIGIT:STRCPY(code, "NFA_NDIGIT"); break;
 	case NFA_HEX:	STRCPY(code, "NFA_HEX"); break;
 	case NFA_NHEX:	STRCPY(code, "NFA_NHEX"); break;
 	case NFA_OCTAL:	STRCPY(code, "NFA_OCTAL"); break;
-	case NFA_NOCTAL:	STRCPY(code, "NFA_NOCTAL"); break;
+	case NFA_NOCTAL:STRCPY(code, "NFA_NOCTAL"); break;
 	case NFA_WORD:	STRCPY(code, "NFA_WORD"); break;
 	case NFA_NWORD:	STRCPY(code, "NFA_NWORD"); break;
 	case NFA_HEAD:	STRCPY(code, "NFA_HEAD"); break;
 	case NFA_NHEAD:	STRCPY(code, "NFA_NHEAD"); break;
 	case NFA_ALPHA:	STRCPY(code, "NFA_ALPHA"); break;
-	case NFA_NALPHA:	STRCPY(code, "NFA_NALPHA"); break;
+	case NFA_NALPHA:STRCPY(code, "NFA_NALPHA"); break;
 	case NFA_LOWER:	STRCPY(code, "NFA_LOWER"); break;
-	case NFA_NLOWER:	STRCPY(code, "NFA_NLOWER"); break;
+	case NFA_NLOWER:STRCPY(code, "NFA_NLOWER"); break;
 	case NFA_UPPER:	STRCPY(code, "NFA_UPPER"); break;
-	case NFA_NUPPER:	STRCPY(code, "NFA_NUPPER"); break;
+	case NFA_NUPPER:STRCPY(code, "NFA_NUPPER"); break;
 	
 	default:    
             STRCPY(code, "CHAR(x)");
@@ -1387,7 +1414,9 @@ static void nfa_set_code(int c)
 
 static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
 {
+    int *p;
     FILE *f;
+
     f = fopen("LOG.log","a");
     if (f)
     {
@@ -1397,7 +1426,6 @@ static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
         else if (retval == OK)
             fprintf(f,">>> NFA engine succeeded !\n");
 	fprintf(f,"Regexp: \"%s\"\nPostfix notation (char): \"", expr);
-	int *p;
 	for (p=post_start; *p; p++)
 	{
 	    nfa_set_code(*p);
@@ -1413,10 +1441,11 @@ static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
 
 static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
 {
+    int i;
+
     if (state == NULL)
 	return;
 
-    int i;
     fprintf(debugf, "(%2d)", abs(state->id));
     for (i=0;i<ident; i++)
 	fprintf(debugf,"%c", ' ');
@@ -1587,9 +1616,8 @@ post2nfa(postfix, end, nfa_calc_size)
     int		*end;
     int		nfa_calc_size;
 {
-    int		*p, st_error = FALSE;
-    Frag	*stackp, *stack_end, e1, e2, e;
-//    Frag	empty;
+    int		*p, st_error = FALSE, open, close;
+    Frag	*stackp = NULL, *stack_end = NULL, e1, e2, e;
     nfa_state_T	*s, *s1, *matchstate;
 
     if (postfix == NULL)
@@ -1628,7 +1656,6 @@ post2nfa(postfix, end, nfa_calc_size)
 	stack = (Frag *) lalloc((nstate+1)*sizeof(Frag), TRUE);
 	stackp = stack;
 	stack_end = stack + NFA_STACK_SIZE;
-//	empty = frag(NULL,NULL);
     }
 
     for (p = postfix; p < end && !st_error; ++p)
@@ -1752,8 +1779,8 @@ post2nfa(postfix, end, nfa_calc_size)
 	    break;
 
 	/* The \@= operator: match the preceding atom with 0 width.
-	 * START_ZERO_WIDTH->out is the next node in the NFA.
-	 * START_ZERO_WIDTH->out1 is the matching END_ZERO_WIDTH node
+	 * Surrounds the preceding atom with START_INVISIBLE and END_INVISIBLE,
+	 * similarly to MOPEN. 
 	 */
 	case NFA_PREV_ATOM_NO_WIDTH:
 	    if (nfa_calc_size == TRUE)
@@ -1762,11 +1789,12 @@ post2nfa(postfix, end, nfa_calc_size)
 		break;
 	    }
 	    e = POP();
-	    s1 = new_state(NFA_END_ZERO_WIDTH, NULL, NULL);
+	    s1 = new_state(NFA_END_INVISIBLE, NULL, NULL);
 	    if (s1 == NULL)
 		return NULL;
 	    patch(e.out, s1);
-	    s = new_state(NFA_START_ZERO_WIDTH, e.start, NULL);
+
+	    s = new_state(NFA_START_INVISIBLE, e.start, s1);
 	    if (s == NULL)
 		return NULL;
 	    PUSH(frag(s, list1(&s1->out)));
@@ -1782,17 +1810,24 @@ post2nfa(postfix, end, nfa_calc_size)
 	case NFA_MOPEN + 7:
 	case NFA_MOPEN + 8:
 	case NFA_MOPEN + 9:
+	case NFA_MOPEN_INVISIBLE:
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate += 2;
 		break;
 	    }
+
+	    open = *p;
+	    close = *p + NSUBEXP;
+	    if (*p == NFA_MOPEN_INVISIBLE)
+		close = NFA_MCLOSE_INVISIBLE;
+
 	    e = POP();
-	    s = new_state(*p, e.start, NULL);   /* `(' */
+	    s = new_state(open, e.start, NULL);   /* `(' */
 	    if (s == NULL)
 		return NULL;
 
-	    s1 = new_state(*p + 10, NULL, NULL);   /* `)' */
+	    s1 = new_state(close, NULL, NULL);   /* `)' */
 	    if (s1 == NULL)
 		return NULL;
 	    patch(e.out, s1);
@@ -1814,6 +1849,7 @@ post2nfa(postfix, end, nfa_calc_size)
     	    break;
 	
 	} /* switch(*p) */
+
     } /* for(p = postfix; *p; ++p) */
 
     if (nfa_calc_size == TRUE)
@@ -1836,6 +1872,7 @@ post2nfa(postfix, end, nfa_calc_size)
 
     matchstate = &state_ptr[istate++]; /* the match state */
     matchstate->c = NFA_MATCH;
+    matchstate->out = matchstate->out1 = NULL;
 
     patch(e.out, matchstate);
     return e.start;
@@ -1844,20 +1881,11 @@ post2nfa(postfix, end, nfa_calc_size)
 #undef PUSH
 }
 
-/* Char pointer stack, used in thread_T */
-struct cstack
-{
-    char_u	*input;
-    struct cstack *next;
-};
-typedef struct cstack cstack_T;
-
 /* thread_T contains runtime information of a NFA state */
 struct thread
 {
     nfa_state_T	*state;
     regsub_T	sub;		/* submatch info */
-    cstack_T	*st;		/* for \@= and \&: stack with input positions */
 };
 
 typedef struct
@@ -1866,16 +1894,10 @@ typedef struct
     int		n;
 } List;
 
-static List list[3];
-
-static int	listid;
-List	*thislist, *nextlist, *neglist;
-
     static void
-addstate(l, state, cst, m, off, lid, match)
+addstate(l, state, m, off, lid, match)
     List		*l;	/* runtime state list */
     nfa_state_T		*state;	/* state to update */
-    cstack_T		*cst;	/* stack of input positions */
     regsub_T		*m;	/* pointers to subexpressions */
     int			off;
     int			lid;
@@ -1884,7 +1906,6 @@ addstate(l, state, cst, m, off, lid, match)
     regsub_T		save;
     int			subidx = 0;
     thread_T		*t;
-    cstack_T		*st2;
 
     if (l == NULL || state == NULL) /* never happen */
 	return;
@@ -1902,7 +1923,7 @@ addstate(l, state, cst, m, off, lid, match)
 	|| (state->c >= '\300' && state->c <= '\377')				/* equivalence classes */
 	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
 	|| (state->c >= NFA_FIRST_NL && state->c <= NFA_LAST_NL)		/* \n + \a, \d etc */
-	|| (state->c == NFA_START_ZERO_WIDTH) || (state->c == NFA_END_ZERO_WIDTH)
+	|| (state->c == NFA_START_INVISIBLE) || (state->c == NFA_END_INVISIBLE)
 	)
     {	
 	if (state->lastlist == lid)
@@ -1916,15 +1937,13 @@ addstate(l, state, cst, m, off, lid, match)
 	    state->lastthread = &l->t[l->n++];
 	    state->lastthread->state = state;
 	    state->lastthread->sub = *m;
-	    state->lastthread->st = cst;
 	    t = state->lastthread;
 	}
     }
 #ifdef ENABLE_LOG_FILE
     nfa_set_code(state->c);
-    fprintf(f, "> Adding state %d to %slist. Character %s, code %d\n", 
-	abs(state->id), (l == thislist? "this" : 
-			(l == neglist ? "neg" : "next" ) ), code, state->c);
+    fprintf(f, "> Adding state %d to list. Character %s, code %d\n", 
+	abs(state->id), code, state->c);
 #endif
     switch (state->c)
     {
@@ -1934,17 +1953,17 @@ addstate(l, state, cst, m, off, lid, match)
 
 	case NFA_SPLIT:
 	    
-	    addstate(l, state->out, cst, m, off, lid, match);
-	    addstate(l, state->out1, cst, m, off, lid, match);
+	    addstate(l, state->out, m, off, lid, match);
+	    addstate(l, state->out1, m, off, lid, match);
 	    break;
 	
 	case NFA_SKIP_CHAR:
-	    addstate(l, state->out, cst, m, off, lid, match);
+	    addstate(l, state->out, m, off, lid, match);
 	    break;
 
 	case NFA_END_NEG_RANGE:
 	    /* End a [^xyz....] construction: accept any char and advance */
-//	    addstate(l, state->out, cst, m, off, lid, match);
+/*	    addstate(l, state->out, m, off, lid, match);	*/
 	    break;
 
 	case NFA_NOT:
@@ -1954,42 +1973,6 @@ addstate(l, state, cst, m, off, lid, match)
 wrong ! Why wasn't it processed already? \n\n");
 #endif
 
-	case NFA_START_ZERO_WIDTH:
-#ifdef ENABLE_LOG_FILE
-    fprintf(f, "\t> Start of zero-width nodes... Input text is \"%s\"\n", reginput);
-#endif
-	    /* remember current input position */
-	    st2 = (cstack_T *) lalloc(sizeof(cstack_T), TRUE);
-	    if (st2 == NULL)
-	    {
-		EMSG("E999: (NFA) Not enough memory available !");
-		return;
-	    }
-	    /* Save input position reginput. Subtract 1 so that
-	     * when restoring, the first character to be read will be 
-	     * the same as now */
-	    st2->input = reginput;
-	    st2->next = cst;
-	    addstate(l, state->out, st2, m, off, lid, match);
-	    break;
-
-	case NFA_END_ZERO_WIDTH:
-#ifdef ENABLE_LOG_FILE
-fprintf(f, "\t> End of zero-width nodes... Input text is \"%s\"\n", reginput);
-fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st->input);
-#endif
-	    /* restore position in input string */
-	    if (t->st == NULL)
-	    {
-		EMSG("E999: (NFA) Error using zero-width operator \\@");
-		return;
-	    }
-	    reginput = t->st->input;
-	    st2 = t->st;
-	    t->st = t->st->next;
-	    vim_free(st2);
-	    addstate(l, state->out, t->st, m, off, lid, match);
-	    break;
 
 	case NFA_MOPEN + 0:
 	case NFA_MOPEN + 1:
@@ -2020,7 +2003,7 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 		m->start[subidx] = reginput + off;
 	    }
 
-	    addstate(l, state->out, cst, m, off, lid, match);
+	    addstate(l, state->out, m, off, lid, match);
 
 	    if (REG_MULTI)
 	    {
@@ -2037,7 +2020,7 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 	case NFA_MCLOSE + 0:
 	    if (nfa_has_zend == TRUE)
 	    {
-		addstate(l, state->out, cst, m, off, lid, match);
+		addstate(l, state->out, m, off, lid, match);
 		break;
 	    }
 	case NFA_MCLOSE + 1:
@@ -2068,7 +2051,7 @@ fprintf(f, "\t> Going back in the input string... Input text is \"%s\"\n", t->st
 		m->end[subidx] = reginput + off;
 	    }
 
-	    addstate(l, state->out, cst, m, off, lid, match);
+	    addstate(l, state->out, m, off, lid, match);
 
 	    if (REG_MULTI)
 	    {
@@ -2163,6 +2146,8 @@ static int check_char_class(class, c)
     return FAIL;
 }
 
+static 	regsub_T m;
+
 /*
  * nfa_regmatch - main matching routine
  *
@@ -2176,47 +2161,48 @@ nfa_regmatch(start, submatch)
     nfa_state_T		*start;
     regsub_T		*submatch;
 {
-    int		c, n, i = 0, result;
+    int		c, n, i = 0, result, size = 0;
     int		match = FALSE, negate = FALSE;
     int		flag = 0;
     int		reginput_updated = FALSE;
     thread_T	*t;
-    char_u	*cc;
+    char_u	*cc, *old_reginput = reginput;
+    nfa_state_T	*matchstate = NULL;
+    static List list[3];
+    static int	listid;
+    List	*thislist, *nextlist, *neglist;
+
 #ifdef ENABLE_LOG_FILE
     int		j = 0;
 #endif
 
-    static 	regsub_T m;
     c = -1;
-
-    if (REG_MULTI)
-    {
-        /* Use 0xff to set lnum to -1 */
-        vim_memset(submatch->startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-        vim_memset(submatch->endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-        vim_memset(m.startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-        vim_memset(m.endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-    }
-    else
-    {
-        vim_memset(submatch->start, 0, sizeof(char_u *) * NSUBEXP);
-        vim_memset(submatch->end, 0, sizeof(char_u *) * NSUBEXP);
-        vim_memset(m.start, 0, sizeof(char_u *) * NSUBEXP);
-        vim_memset(m.end, 0, sizeof(char_u *) * NSUBEXP);
-    }
-
     listid = 1;
+
+    /* Allocate memory for the lists of nodes */
+    size = (nstate + 1) * sizeof(thread_T);
+    list[0].t = (thread_T *)lalloc(size, TRUE);
+    list[1].t = (thread_T *)lalloc(size, TRUE);
+    list[2].t = (thread_T *)lalloc(size, TRUE);
+    if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
+	goto theend;
+    vim_memset(list[0].t, 0, size);
+    vim_memset(list[1].t, 0, size);
+    vim_memset(list[2].t, 0, size);
 
 #ifdef ENABLE_LOG_FILE
     f = fopen("log_nfarun.log","a");
     if (f)
     {
-	fprintf(f, "\n\n\n\n\n\n\t\t=======================================================\n");
-	fprintf(f, "		=======================================================\n");
-	fprintf(f, "\tCompiled regexp \"%s\" \n", nfa_regengine.expr);
-	fprintf(f, "\tInput text is \"%s\" \n", reginput);
-	fprintf(f, "		=======================================================\n\n\n\n\n\n\n");
-	nfa_print_state(f, start, 0);
+	fprintf(f, "**********************************\n");
+	nfa_set_code(start->c);
+	fprintf(f, " RUNNING nfa_regmatch() starting with state %d, code %s\n", abs(start->id), code);
+	fprintf(f, "**********************************\n");
+    }
+    else
+    {
+	EMSG("E999: Could not open temporary log file for writing, displaying on stderr ... ");
+	f = stderr;
     }
 #endif
 
@@ -2227,7 +2213,7 @@ nfa_regmatch(start, submatch)
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "(---) STARTSTATE\n");
 #endif
-    addstate(thislist, start, NULL, &m, 0, listid, &match);
+    addstate(thislist, start, &m, 0, listid, &match);
 
     /* run for each character */
     do {
@@ -2286,22 +2272,20 @@ again:
 #define	ADD_POS_NEG_STATE()				    \
 		/* Check if current char matches */	    \
 		if (negate == FALSE && result == OK)	    \
-		    addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);	\
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);	\
 		else					    \
 		/* Check if current char doesn't match */   \
 		if (negate == TRUE && result != OK)	    \
-		    addstate(neglist, t->state->out->out, t->st, &t->sub, n, listid+1, &match);
+		    addstate(neglist, t->state->out->out, &t->sub, n, listid+1, &match);
 
+
+/* Handle the possible codes of the current state.
+ * The most important is NFA_MATCH */
 	    switch (t->state->c)
 	    {
 	    case NFA_MATCH:
-		if (t->st != NULL)
-		{
-		    /* When I find a match, there should be no 
-		     * dangling pointers to go back in the input string */
-		    EMSG("E999: (NFA) Match found, but something went wrong (zero-width operators) ");
-		}
 		match = TRUE;
+		matchstate = t->state;
 		*submatch = t->sub;
 #ifdef ENABLE_LOG_FILE
     for (j = 0; j < 4; j++)
@@ -2314,14 +2298,55 @@ again:
 		goto nextchar;		/* found the left-most longest match */
 		break;
 
+	    /* This is only encountered after a NFA_START_INVISIBLE node. They
+	     * surround a zero-width group, used with "\@=" and "\&". 
+	     * If we got here, it means that the current "invisible" group finished 
+	     * successfully, so return control to the parent nfa_regmatch(). 
+	     * Submatches are automatically remembered. */
+	    case NFA_END_INVISIBLE:
+		return TRUE;
+		break;
+
+	    case NFA_START_INVISIBLE:
+		/* Save global variables, and call nfa_regmatch() to check if the
+		 * current concat matches at this position. The concat ends with the
+		 * node NFA_END_INVISIBLE */
+		old_reginput = reginput;
+#ifdef ENABLE_LOG_FILE
+    if (f != stderr)
+	fclose(f);
+
+#endif
+		result = nfa_regmatch(t->state->out, submatch);
+#ifdef ENABLE_LOG_FILE
+    f = fopen("log_nfarun.log","a");
+    if (f)
+    {
+    }
+    else
+    {
+	EMSG("E999: Could not open temporary log file for writing, displaying on stderr ... ");
+	f = stderr;
+    }
+#endif
+		if (result == TRUE)
+		{
+		    reginput = old_reginput;
+		    /* t->state->out1 is the corresponding END_INVISIBLE node */
+		    addstate(nextlist, t->state->out1->out, &t->sub, 0, listid, &match);
+		}
+		else
+		    return 0;
+		break;
+
 	    case NFA_BOL:
 		if (reginput == regline)
-		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
 		break;
 
 	    case NFA_EOL:
 		if (c == NUL)
-		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
 		break;
 
 	    case NFA_BOW:
@@ -2349,7 +2374,7 @@ again:
 			bol = FALSE;
 		}
 		if (bol)
-		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
 		break;
 	    }
 
@@ -2378,7 +2403,7 @@ again:
 			eol = FALSE;
 		}
 		if (eol)
-		    addstate(thislist, t->state->out, t->st, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
 		break;
 	    }
 
@@ -2391,7 +2416,7 @@ again:
 			reg_nextline();
 			reginput_updated = TRUE;
 		    }
-		    addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		}
 		break;
 
@@ -2419,13 +2444,13 @@ again:
 		/* This follows a series of negated nodes, like: 
 		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc */
 		if (c > 0)
-		  addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
+		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
 	    case NFA_ANY:	    
 		/* Any printable char, not just any char. '\0' (end of input) must not match */
 		if (c > 0)
-		  addstate(nextlist, t->state->out, t->st, &t->sub, n, listid+1, &match);
+		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
 		break;
 
 /* Character classes like \a for alpha, \d for digit etc */
@@ -2579,7 +2604,7 @@ again:
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "(---) STARTSTATE\n");
 #endif
-	    addstate(nextlist, start, NULL, &m, n, listid+1, &match);
+	    addstate(nextlist, start, &m, n, listid+1, &match);
 	}
 
         if (reginput_updated)
@@ -2603,12 +2628,51 @@ nextchar:
     } while (c || reginput_updated);
 
 #ifdef ENABLE_LOG_FILE
-    fclose(f);
+    if (f != stderr)
+	fclose(f);
 #endif
+
+    /* if match state has a successor S, then S must match at the
+     * start position in the input text too (it is probably a concat)
+     */
+    if (match == TRUE && matchstate->out != NULL)
+    {	
+	if (REG_MULTI)
+	{
+	    for (i = reglnum ; i < submatch->startpos[0].lnum; i++)
+		reg_nextline();
+	    reginput = old_reginput + submatch->startpos[0].col;
+	}
+	else
+	    reginput = submatch->start[0];
+	match = nfa_regmatch(matchstate->out, submatch);
+    }
+
+theend:
+    /* Free memory */
+    vim_free(list[0].t);
+    vim_free(list[1].t);
+    vim_free(list[2].t);
+    list[0].t = list[1].t = list[2].t = NULL;
 
     return match;
 }
-
+/*
+    if (REG_MULTI)
+    {
+        vim_memset(submatch->startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+        vim_memset(submatch->endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+        vim_memset(m.startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+        vim_memset(m.endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+    }
+    else
+    {
+        vim_memset(submatch->start, 0, sizeof(char_u *) * NSUBEXP);
+        vim_memset(submatch->end, 0, sizeof(char_u *) * NSUBEXP);
+        vim_memset(m.start, 0, sizeof(char_u *) * NSUBEXP);
+        vim_memset(m.end, 0, sizeof(char_u *) * NSUBEXP);
+    }
+*/
 /*
  * nfa_regtry - try match of "prog" with at regline["col"].
  * Returns 0 for failure, number of lines contained in the match otherwise.
@@ -2624,7 +2688,40 @@ nfa_regtry(start, col)
     reginput = regline + col;
     need_clear_subexpr = TRUE;
 
-    if (nfa_regmatch(start, &sub) == 0)
+#ifdef ENABLE_LOG_FILE
+    f = fopen("log_nfarun.log","a");
+    if (f)
+    {
+	fprintf(f, "\n\n\n\n\n\n\t\t=======================================================\n");
+	fprintf(f, "		=======================================================\n");
+	fprintf(f, "\tCompiled regexp \"%s\" \n", nfa_regengine.expr);
+	fprintf(f, "\tInput text is \"%s\" \n", reginput);
+	fprintf(f, "		=======================================================\n\n\n\n\n\n\n");
+	nfa_print_state(f, start, 0);
+	fprintf(f, "\n\n");
+	fclose(f);
+    }
+    else
+	EMSG("E999: Could not open temporary log file for writing ");
+#endif
+
+    if (REG_MULTI)
+    {
+        /* Use 0xff to set lnum to -1 */
+        vim_memset(sub.startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+        vim_memset(sub.endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+        vim_memset(m.startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+        vim_memset(m.endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
+    }
+    else
+    {
+        vim_memset(sub.start, 0, sizeof(char_u *) * NSUBEXP);
+        vim_memset(sub.end, 0, sizeof(char_u *) * NSUBEXP);
+        vim_memset(m.start, 0, sizeof(char_u *) * NSUBEXP);
+        vim_memset(m.end, 0, sizeof(char_u *) * NSUBEXP);
+    }
+
+    if (nfa_regmatch(start, &sub) == FALSE)
 	return 0;
 
     cleanup_subexpr();
@@ -2680,7 +2777,6 @@ nfa_regexec_both(line, col)
 {
     nfa_regprog_T   *prog;
     long	retval = 0L;
-    int		size;
     int		i;
 
     if (REG_MULTI)
@@ -2725,20 +2821,6 @@ nfa_regexec_both(line, col)
 
     nstate = prog->nstate;
 
-    size = (nstate + 1) * sizeof(thread_T);
-
-    list[0].t = (thread_T *)lalloc(size, TRUE);
-    list[1].t = (thread_T *)lalloc(size, TRUE);
-    list[2].t = (thread_T *)lalloc(size, TRUE);
-    if (list[0].t == NULL || list[1].t == NULL || list[2].t == NULL)
-	goto theend;
-
-   // list[0].st = list[1].st = list[2].st = NULL;
-
-    vim_memset(list[0].t, 0, size);
-    vim_memset(list[1].t, 0, size);
-    vim_memset(list[2].t, 0, size);
-
     /* TODO need speedup */
     for (i = 0; i < nstate; ++i)
         {
@@ -2751,12 +2833,6 @@ nfa_regexec_both(line, col)
     retval = nfa_regtry(prog->start, col);
 
 theend:
-    vim_free(list[0].t);
-    vim_free(list[1].t);
-    vim_free(list[2].t);
-    list[0].t = list[1].t = list[2].t = NULL;
-//    list[0].st = list[1].st = list[2].st = NULL;
-
     return retval;
 }
 

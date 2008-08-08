@@ -41,9 +41,9 @@
 #include "vim.h"
 
 
-#undef DEBUG
-//#define BT_REGEXP_DUMP		    /* show/save debugging data when BT engine is used */
-//#define BT_REGEXP_LOG		    /* save the data to a file instead of displaying it */
+/*#undef DEBUG*/
+/*#define BT_REGEXP_DUMP*/		    /* show/save debugging data when BT engine is used */
+/*#define BT_REGEXP_LOG*/		    /* save the data to a file instead of displaying it */
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -258,10 +258,12 @@ enum
     NFA_NEWL,
     NFA_ZSTART,
     NFA_ZEND,
+    NFA_MOPEN_INVISIBLE,
+    NFA_MCLOSE_INVISIBLE,
+    NFA_START_INVISIBLE,
+    NFA_END_INVISIBLE,
 
-    NFA_START_ZERO_WIDTH,
-    NFA_END_ZERO_WIDTH,
-
+    /* The following are used only in the postfix form, not in the NFA */
     NFA_PREV_ATOM_NO_WIDTH,
     NFA_PREV_ATOM_NO_WIDTH_NEG,
     NFA_PREV_ATOM_JUST_BEFORE,
@@ -559,7 +561,7 @@ get_char_class(pp)
 #define CLASS_ESCAPE 15
     };
 #define CLASS_NONE 99
-    int i;
+    unsigned int i;
 
     if ((*pp)[1] == ':')
     {
@@ -7418,7 +7420,7 @@ static regengine_T bt_regengine =
 	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
     bt_regexec_nl,
 #endif
-    bt_regexec_multi,
+    bt_regexec_multi
 };
 
 
@@ -7432,7 +7434,7 @@ static struct regengine nfa_regengine =
 	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
     nfa_regexec_nl,
 #endif
-    nfa_regexec_multi,
+    nfa_regexec_multi
 };
 
 /* Which regexp engine to use? Needed for vim_regcomp() */
@@ -7481,7 +7483,8 @@ vim_regcomp(expr, re_flags)
     nfa_regengine.expr = expr;
     bt_regengine.expr = expr;
 #endif
-    // First try the NFA engine
+/*    printf("REGEXP: %s\n", expr);	*/
+    /* First try the NFA engine	*/
     if (regexp_engine != BACKTRACKING_ENGINE)
         prog = nfa_regengine.regcomp(expr, re_flags);
     else
