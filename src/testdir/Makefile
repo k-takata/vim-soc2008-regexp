@@ -39,6 +39,9 @@ gui:	nolog $(SCRIPTS) $(SCRIPTS_GUI)
 
 39:	test39.out
 	
+49:	test49.out
+
+51:	test51.out
 
 $(SCRIPTS) $(SCRIPTS_GUI): $(VIMPROG)
 

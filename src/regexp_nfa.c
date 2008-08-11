@@ -7,7 +7,7 @@
 #define ENABLE_LOG		/* Comment this out to disable log files. They can get pretty big */
 #endif
 
-#define NEWSTACK		/* Use new version of POP and PUSH in post2nfa() */
+//#define NEWSTACK		/* Use new version of POP and PUSH in post2nfa() */
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
 #define	    NFA_BRACES_MAXLIMIT		    10	    
@@ -1675,7 +1675,7 @@ post2nfa(postfix, end, nfa_calc_size)
 
 #define PUSH(s)	    st_push ((s), &stackp, stack_end)
 #define POP()	    st_pop(&stackp, stack);		\
-		    if (stackp <= stack) return NULL;
+		    if (stackp < stack) return NULL;
 
 #else
 
