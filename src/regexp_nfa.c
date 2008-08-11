@@ -7,6 +7,8 @@
 #define ENABLE_LOG		/* Comment this out to disable log files. They can get pretty big */
 #endif
 
+#define NEWSTACK		/* Use new version of POP and PUSH in post2nfa() */
+
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
 #define	    NFA_BRACES_MAXLIMIT		    10	    
 /* For allocating space for the postfix representation */
@@ -1618,26 +1620,39 @@ append(l1, l2)
  * Stack used for transforming postfix form into NFA.
  */
 static Frag *stack, empty;
-
-inline void st_push(s, stackp, stack_end)
+/*
+#define PUSH(s) {                           \
+                    if (stackp >= stack_end)\
+                        return NULL;        \
+                     *stackp++ = s;         \
+                }
+#define POP()   ({                          \
+                    if (stackp <= stack)    \
+                        return NULL;        \
+                    *--stackp;              \
+                 })
+*/
+inline void st_push(s, p, stack_end)
     Frag s;
-    Frag *stackp;
+    Frag **p;
     Frag *stack_end;
 {
+Frag *stackp = *p;
     if (stackp >= stack_end)
 	return;
     *stackp = s;
-    stackp ++;
+    *p = *p + 1;
 }
 
-inline Frag st_pop(stackp, stack)
-    Frag *stackp;
+inline Frag st_pop(p, stack)
+    Frag **p;
     Frag *stack;
 {
+Frag *stackp = *p;
     if (stackp <= stack)
 	return empty;
-    stackp --;
-    return *stackp;
+    *p = *p - 1;
+    return **p;
 }
 
 /*
@@ -1656,12 +1671,25 @@ post2nfa(postfix, end, nfa_calc_size)
 
     if (postfix == NULL)
         return NULL;
+#ifdef NEWSTACK
 
-
-#define PUSH(s)	    st_push ((s), stackp, stack_end)
-#define POP()	    st_pop(stackp, stack);		\
+#define PUSH(s)	    st_push ((s), &stackp, stack_end)
+#define POP()	    st_pop(&stackp, stack);		\
 		    if (stackp <= stack) return NULL;
 
+#else
+
+#define PUSH(s) {                           \
+                    if (stackp >= stack_end)\
+                        return NULL;        \
+                     *stackp++ = s;         \
+                }
+#define POP()   ({                          \
+                    if (stackp <= stack)    \
+                        return NULL;        \
+                    *--stackp;              \
+                 })
+#endif
     if (nfa_calc_size == FALSE)
     {
 	/* Allocate space for the stack. Max states on the stack : nstate */
