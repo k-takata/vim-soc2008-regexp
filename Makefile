@@ -3,17 +3,18 @@
 #
 
 #VIMPROG = /usr/bin/vim
-VIMPROG = /soc2008/vim-new/src/vim
+#VIMPROG = /soc2008/vim-new/src/vim
+VIMPROG = /soc2008/vim72c-re/src/vim
 #VIMPROG = ../vim-old/src/vim
 #VIMPROG = ../vim-both/src/vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
-# VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
+#VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
 
 SCRIPTS = 	\
 			test39.out test42.out test46.out \
-#			regexptest.out test24.out test51.out test58.out test59.out \
+			regexptest.out test24.out test51.out test58.out test59.out \
 #			test49.out
 
 SCRIPTS_GUI = test16.out

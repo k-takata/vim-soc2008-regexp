@@ -139,21 +139,6 @@ STARTTEST
 :call add(tl, ['[A-Z]', 'a'])
 :call add(tl, ['\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
 
-:"""" Tests for \@ features
-:call add(tl, ['abc\@=', 'abc', 'ab'])
-:call add(tl, ['abc\@=cd', 'abcd', 'abcd'])
-:call add(tl, ['abc\@=', 'ababc', 'ab'])
-:call add(tl, ['abcd\@=e', 'abcd'])                     " will never match, no matter the input text
-:call add(tl, ['abcd\@=e', 'any text in here ... '])    " will never match
-:call add(tl, ['abc\@!', 'abc'])
-:call add(tl, ['abc\@!', 'abd', 'ab'])
-:call add(tl, ['c\@<=test', 'abctest', 'test'])
-:call add(tl, ['c\@<=test', 'abcdtest'])
-:call add(tl, ['c\@<!haha', 'chaha'])
-:call add(tl, ['c\@<!haha', 'abcd haha', 'haha'])
-:call add(tl, ['\(xyz\)\@>cd', 'xyzcd', 'xyzcd', 'xyz'])
-:call add(tl, ['xyz\@>cd', 'xyzc'])
-
 :"""" Tests for \z features 
 :call add(tl, ['xx \ze test', 'xx '])					" must match after \ze
 :call add(tl, ['abc\zeend', 'oij abcend', 'abc'])
@@ -161,6 +146,19 @@ STARTTEST
 :call add(tl, ['aa \zsax', ' ax'])						" must match before \zs
 :call add(tl, ['abc \zsmatch\ze abc', 'abc abc abc match abc abc', 'match'])
 :call add(tl, ['\v(a \zsif .*){2}', 'a if then a if last', 'if last', 'a if last'])
+
+:"""" Tests for \@ features
+:call add(tl, ['abc\@=', 'abc', 'ab'])
+:call add(tl, ['abc\@=cd', 'abcd', 'abcd'])
+:call add(tl, ['abc\@=', 'ababc', 'ab'])
+:call add(tl, ['abcd\@=e', 'abcd'])                     " will never match, no matter the input text
+:call add(tl, ['abcd\@=e', 'any text in here ... '])    " will never match
+:call add(tl, ['\v(abc)@=..', 'xabcd', 'ab', 'abc'])
+:call add(tl, ['\(.*John\)\@=.*Bob', 'here is John, and here is B'])	" no match
+:call add(tl, ['\(John.*\)\@=.*Bob', 'John is Bobs friend', 'John is Bob', 'John is Bobs friend'])
+:call add(tl, ['.*John\&.*Bob', 'here is John, and here is B'])	" no match
+:call add(tl, ['.*John\&.*Bob', 'John is Bobs friend', 'John is Bob'])
+:call add(tl, ['\v(test1)@=.*yep', 'this is a test1, yep it is', 'test1, yep', 'test1'])
 
 :"""" TODO: Write more tests for groups, and submatches
 
@@ -170,7 +168,7 @@ STARTTEST
 :call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
 
 :"""" Debugging tests
-:call add(tl, ['abc\&ab', 'xabcd', 'ab'])
+:call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])							" equivalence classes + not
 
 :"
 :for t in tl
