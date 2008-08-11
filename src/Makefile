@@ -519,7 +519,7 @@ CONF_OPT_X = --without-x
 
 # Often used for GCC: mixed optimizing, lot of optimizing, debugging
 #CFLAGS = -g -fno-strength-reduce -Wall -Wmissing-prototypes -DDEBUG -Wextra -ansi -pedantic
- CFLAGS = -g -fno-strength-reduce -Wall -Wmissing-prototypes -DDEBUG
+ CFLAGS = -g -fno-strength-reduce -Wall -DDEBUG
 #CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
 #CFLAGS = -g -Wall -Wmissing-prototypes
 #CFLAGS = -O6 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes

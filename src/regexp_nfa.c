@@ -4,7 +4,7 @@
 
 
 #ifdef DEBUG
-#define ENABLE_LOG_FILE		/* Comment this out to disable log files. They can get pretty big */
+#define ENABLE_LOG		/* Comment this out to disable log files. They can get pretty big */
 #endif
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -14,7 +14,7 @@
 /* Size of stack, used when converting the postfix regexp into NFA */
 #define	    NFA_STACK_SIZE		    1024
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
 static void nfa_postfix_dump __ARGS((char_u *expr, int retval));
 static void nfa_dump __ARGS((nfa_regprog_T *prog));
 FILE	    *f;
@@ -37,9 +37,7 @@ static int nstate;	/* Number of states in the NFA. */
 static int istate;	/* Index in the state vector, used in new_state() */
 static int nstate_max;	/* Upper bound of estimated number of states. */
 
-static int nfa_just_found_braces = FALSE;  
-
-
+/* Used for recursive calls in nfa_regmatch() */
 void nfa_save_listids(nfa_state_T *start, int *list);
 void nfa_restore_listids(nfa_state_T *start, int *list);
 void nfa_set_null_listids(nfa_state_T *start);
@@ -261,7 +259,8 @@ nfa_emit_equi_class(c, neg)
 {
 int	first = TRUE;
 int	glue = neg == TRUE ? NFA_CONCAT : NFA_OR; 
-#define EMIT_GLU()		\
+#define EMIT2(c)		\
+	EMIT(c);		\
 	if (neg == TRUE) {	\
 	    EMIT(NFA_NOT);	\
 	    EMIT(NFA_CONCAT);	\
@@ -281,122 +280,122 @@ int	glue = neg == TRUE ? NFA_CONCAT : NFA_OR;
 	{
 	    case 'A': case '\300': case '\301': case '\302':
 	    case '\303': case '\304': case '\305':
-		    EMIT('A');	    EMIT_GLU();
-		    EMIT('\300');   EMIT_GLU();
-		    EMIT('\301');   EMIT_GLU();
-		    EMIT('\302');   EMIT_GLU();
-		    EMIT('\303');   EMIT_GLU();
-		    EMIT('\304');   EMIT_GLU();
-		    EMIT('\305');   EMIT_GLU();
+		    EMIT2('A');
+		    EMIT2('\300');
+		    EMIT2('\301');
+		    EMIT2('\302');
+		    EMIT2('\303');
+		    EMIT2('\304');
+		    EMIT2('\305');
 		    return OK;
 
 	    case 'C': case '\307':
-		    EMIT('C');	    EMIT_GLU();
-		    EMIT('\307');   EMIT_GLU();
+		    EMIT2('C');
+		    EMIT2('\307');
 		    return OK;
 
 	    case 'E': case '\310': case '\311': case '\312': case '\313':
-		    EMIT('E');	    EMIT_GLU();
-		    EMIT('\310');   EMIT_GLU();
-		    EMIT('\311');   EMIT_GLU();
-		    EMIT('\312');   EMIT_GLU();
-		    EMIT('\313');   EMIT_GLU();
+		    EMIT2('E');
+		    EMIT2('\310');
+		    EMIT2('\311');
+		    EMIT2('\312');
+		    EMIT2('\313');
 		    return OK;
 
 	    case 'I': case '\314': case '\315': case '\316': case '\317':
-		    EMIT('I');	    EMIT_GLU();
-		    EMIT('\315');   EMIT_GLU();
-		    EMIT('\316');   EMIT_GLU();
-		    EMIT('\317');   EMIT_GLU();
+		    EMIT2('I');
+		    EMIT2('\315');
+		    EMIT2('\316');
+		    EMIT2('\317');
 		    return OK;
 
 	    case 'N': case '\321':
-		    EMIT('N');	    EMIT_GLU();
-		    EMIT('\321');   EMIT_GLU();
+		    EMIT2('N');
+		    EMIT2('\321');
 		    return OK;
 
 	    case 'O': case '\322': case '\323': case '\324': case '\325':
 	    case '\326':
-		    EMIT('O');	    EMIT_GLU();
-		    EMIT('\322');   EMIT_GLU();
-		    EMIT('\323');   EMIT_GLU();
-		    EMIT('\324');   EMIT_GLU();
-		    EMIT('\325');   EMIT_GLU();
-		    EMIT('\326');   EMIT_GLU();
+		    EMIT2('O');
+		    EMIT2('\322');
+		    EMIT2('\323');
+		    EMIT2('\324');
+		    EMIT2('\325');
+		    EMIT2('\326');
 		    return OK;
 
 	    case 'U': case '\331': case '\332': case '\333': case '\334':
-		    EMIT('U');	    EMIT_GLU();
-		    EMIT('\331');   EMIT_GLU();
-		    EMIT('\332');   EMIT_GLU();
-		    EMIT('\333');   EMIT_GLU();
-		    EMIT('\334');   EMIT_GLU();
+		    EMIT2('U');
+		    EMIT2('\331');
+		    EMIT2('\332');
+		    EMIT2('\333');
+		    EMIT2('\334');
 		    return OK;
 
 	    case 'Y': case '\335':
-		    EMIT('Y');	    EMIT_GLU();
-		    EMIT('\335');   EMIT_GLU();
+		    EMIT2('Y');
+		    EMIT2('\335');
 		    return OK; 
 
 	    case 'a': case '\340': case '\341': case '\342':
 	    case '\343': case '\344': case '\345':
-		    EMIT('a');	    EMIT_GLU();
-		    EMIT('\340');   EMIT_GLU();
-		    EMIT('\341');   EMIT_GLU();
-		    EMIT('\342');   EMIT_GLU();
-		    EMIT('\343');   EMIT_GLU();
-		    EMIT('\344');   EMIT_GLU();
-		    EMIT('\345');   EMIT_GLU();
+		    EMIT2('a');
+		    EMIT2('\340');
+		    EMIT2('\341');
+		    EMIT2('\342');
+		    EMIT2('\343');
+		    EMIT2('\344');
+		    EMIT2('\345');
 		    return OK;
 
 	    case 'c': case '\347':
-		    EMIT('c');	    EMIT_GLU();
-		    EMIT('\347');   EMIT_GLU();
+		    EMIT2('c');
+		    EMIT2('\347');
 		    return OK;
 
 	    case 'e': case '\350': case '\351': case '\352': case '\353':
-		    EMIT('e');	    EMIT_GLU();
-		    EMIT('\350');   EMIT_GLU();
-		    EMIT('\351');   EMIT_GLU();
-		    EMIT('\352');   EMIT_GLU();
-		    EMIT('\353');   EMIT_GLU();
+		    EMIT2('e');
+		    EMIT2('\350');
+		    EMIT2('\351');
+		    EMIT2('\352');
+		    EMIT2('\353');
 		    return OK;
 
 	    case 'i': case '\354': case '\355': case '\356': case '\357':
-		    EMIT('i');	    EMIT_GLU();
-		    EMIT('\354');   EMIT_GLU();
-		    EMIT('\355');   EMIT_GLU();
-		    EMIT('\356');   EMIT_GLU();
-		    EMIT('\357');   EMIT_GLU();
+		    EMIT2('i');
+		    EMIT2('\354');
+		    EMIT2('\355');
+		    EMIT2('\356');
+		    EMIT2('\357');
 		    return OK;
 
 	    case 'n': case '\361':
-		    EMIT('n');	    EMIT_GLU();
-		    EMIT('\361');   EMIT_GLU();
+		    EMIT2('n');
+		    EMIT2('\361');
 		    return OK;
 
 	    case 'o': case '\362': case '\363': case '\364': case '\365':
 	    case '\366':
-		    EMIT('o');	    EMIT_GLU();
-		    EMIT('\362');   EMIT_GLU();
-		    EMIT('\363');   EMIT_GLU();
-		    EMIT('\364');   EMIT_GLU();
-		    EMIT('\365');   EMIT_GLU();
-		    EMIT('\366');   EMIT_GLU();
+		    EMIT2('o');
+		    EMIT2('\362');
+		    EMIT2('\363');
+		    EMIT2('\364');
+		    EMIT2('\365');
+		    EMIT2('\366');
 		    return OK;
 
 	    case 'u': case '\371': case '\372': case '\373': case '\374':
-		    EMIT('u');	    EMIT_GLU();
-		    EMIT('\371');   EMIT_GLU();
-		    EMIT('\372');   EMIT_GLU();
-		    EMIT('\373');   EMIT_GLU();
-		    EMIT('\374');   EMIT_GLU();
+		    EMIT2('u');
+		    EMIT2('\371');
+		    EMIT2('\372');
+		    EMIT2('\373');
+		    EMIT2('\374');
 		    return OK;
 
 	    case 'y': case '\375': case '\377':
-		    EMIT('y');	    EMIT_GLU();
-		    EMIT('\375');   EMIT_GLU();
-		    EMIT('\377');   EMIT_GLU();
+		    EMIT2('y');
+		    EMIT2('\375');
+		    EMIT2('\377');
 		    return OK;
 
 	    default:
@@ -406,7 +405,7 @@ int	glue = neg == TRUE ? NFA_CONCAT : NFA_OR;
 
     EMIT(c);
     return OK;
-#undef EMIT_GLU
+#undef EMIT2
 }
 
 /*
@@ -448,7 +447,7 @@ nfa_regatom()
 
     c = getchr();
     /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
-     * Fail and revert to old engine */
+     * Fail and revert to old engine. TODO(RE) Implement composing chars */
 #ifdef FEAT_MBYTE
     if ((*mb_char2len)(c)>1)
         return FAIL;	    /* unsupported for now */
@@ -817,7 +816,7 @@ collection:
 				regparse++;
 
 				if (*regparse == 'u' || *regparse == 'U')
-				    return FAIL;	/* multibyte chars not supported yet */
+				    return FAIL;	/* TODO(RE) multibyte chars not supported yet */
 
 				if (*regparse == 'n' || *regparse == 'n')
 				    startc = reg_string ? NL : NFA_NEWL; 
@@ -917,10 +916,10 @@ collection:
 			if (has_mbyte && (*mb_char2len)(c) > 1
 					 && (enc_utf8 && utf_iscomposing(c)))
 			{
-			    /* composing char not supported yet */
+			    /* TODO(RE) composing char not supported yet */
 			    return FAIL;
 			}
-			/* composing char not supported yet */
+			/* TODO(RE) composing char not supported yet */
 #endif
 			c = no_Magic(c);
 			EMIT(c);
@@ -960,7 +959,6 @@ nfa_regpiece()
     int		old_regnpar;
     int		quest;
 
-    nfa_just_found_braces = FALSE;
     /* Save the current position in the regexp, so that we can use it if <atom>{m,n} is next. */
     old_regparse = regparse;
     /* Save current number of open paranthesis, so we can use it if <atom>{m,n} is next */
@@ -1308,7 +1306,7 @@ typedef struct
     lpos_T	endpos[NSUBEXP];
 } regsub_T;
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
 static char code[50]; 
 static FILE *debugf;
 static void nfa_set_code(int c)
@@ -1619,7 +1617,28 @@ append(l1, l2)
 /*
  * Stack used for transforming postfix form into NFA.
  */
-static Frag *stack;
+static Frag *stack, empty;
+
+inline void st_push(s, stackp, stack_end)
+    Frag s;
+    Frag *stackp;
+    Frag *stack_end;
+{
+    if (stackp >= stack_end)
+	return;
+    *stackp = s;
+    stackp ++;
+}
+
+inline Frag st_pop(stackp, stack)
+    Frag *stackp;
+    Frag *stack;
+{
+    if (stackp <= stack)
+	return empty;
+    stackp --;
+    return *stackp;
+}
 
 /*
  * Convert a postfix form into its equivalent NFA.
@@ -1638,32 +1657,10 @@ post2nfa(postfix, end, nfa_calc_size)
     if (postfix == NULL)
         return NULL;
 
-/* 
- * The next definitions of PUSH and POP do not work as expected ...
- *
-#define PUSH(s)						    \
-		if (stackp >= stack_end)		    \
-		    EMSG("E999: NFA Stack error: Could not Push!");\
-		else					    \
-		    *stackp++ = (s)
-	        
-#define POP()								\
-	*--stackp;							\
-	if (stackp <= stack)						\
-	    return NULL;						
 
-*/
-
-#define PUSH(s) {                           \
-                    if (stackp >= stack_end)\
-                        return NULL;        \
-                     *stackp++ = s;         \
-                }
-#define POP()   ({                          \
-                    if (stackp <= stack)    \
-                        return NULL;        \
-                    *--stackp;              \
-                 })
+#define PUSH(s)	    st_push ((s), stackp, stack_end)
+#define POP()	    st_pop(stackp, stack);		\
+		    if (stackp <= stack) return NULL;
 
     if (nfa_calc_size == FALSE)
     {
@@ -1955,7 +1952,7 @@ addstate(l, state, m, off, lid, match)
 	    t = state->lastthread;
 	}
     }
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     nfa_set_code(state->c);
     fprintf(f, "> Adding state %d to list. Character %s, code %d\n", 
 	abs(state->id), code, state->c);
@@ -1983,7 +1980,7 @@ addstate(l, state, m, off, lid, match)
 
 	case NFA_NOT:
 	    EMSG("E999: (NFA regexp internal error) Should not process NOT node !");
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
 	fprintf(f, "\n\n>>> E999: Added state NFA_NOT to a list ... Something went \
 wrong ! Why wasn't it processed already? \n\n");
 #endif
@@ -2173,6 +2170,7 @@ static int check_char_class(class, c)
     return FAIL;
 }
 
+/* Set all NFA nodes' list ID equal to -1 */
 void nfa_set_neg_listids(start)
     nfa_state_T	    *start;
 {
@@ -2186,6 +2184,7 @@ void nfa_set_neg_listids(start)
     }
 }
 
+/* Set all NFA nodes' list ID equal to 0 */
 void nfa_set_null_listids(start)
     nfa_state_T	    *start;
 {
@@ -2199,6 +2198,7 @@ void nfa_set_null_listids(start)
     }
 }
 
+/* Save list IDs for all NFA states in "list" */
 void nfa_save_listids(start, list)
     nfa_state_T	    *start;
     int		    *list;
@@ -2214,6 +2214,7 @@ void nfa_save_listids(start, list)
     }
 }
 
+/* Restore list IDs from "list" to all NFA states */
 void nfa_restore_listids(start, list)
     nfa_state_T	    *start;
     int		    *list;
@@ -2270,7 +2271,7 @@ nfa_regmatch(start, submatch, m)
     vim_memset(list[1].t, 0, size);
     vim_memset(list[2].t, 0, size);
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     f = fopen("log_nfarun.log","a");
     if (f)
     {
@@ -2292,7 +2293,7 @@ nfa_regmatch(start, submatch, m)
     nextlist->n = 0;
     neglist = &list[2];
     neglist->n = 0;
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     fprintf(f, "(---) STARTSTATE\n");
 #endif
     addstate(thislist, start, m, 0, listid, &match);
@@ -2321,7 +2322,7 @@ again:
 	nextlist = &list[flag ^= 1];
 	nextlist->n = 0;	    /* `clear' nextlist */
 	++listid;
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     fprintf(f, "------------------------------------------\n");
     fprintf(f, ">>> Reginput is \"%s\"\n", reginput);
     fprintf(f, ">>> Advanced one character ... Current char is %c (code %d) \n", c, (int)c);
@@ -2347,7 +2348,7 @@ again:
 	    if (t->state->out && t->state->out->c == NFA_NOT)
 		negate = TRUE;
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     nfa_set_code(t->state->c);
     fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id), code, (int)t->state->c);
 #endif
@@ -2370,7 +2371,7 @@ again:
 		match = TRUE;
 		matchstate = t->state;
 		*submatch = t->sub;
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     for (j = 0; j < 4; j++)
 	if (REG_MULTI)
 	    fprintf(f, "\n *** group %d, start: c=%d, l=%d, end: c=%d, l=%d", j, t->sub.startpos[j].col, (int)t->sub.startpos[j].lnum, t->sub.endpos[j].col, (int)t->sub.endpos[j].lnum);
@@ -2412,7 +2413,7 @@ again:
 			return 0;
 		    }
 		}
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     if (f != stderr)
 	fclose(f);
 #endif
@@ -2423,7 +2424,7 @@ again:
 		result = nfa_regmatch(t->state->out, submatch, m);
 		nfa_set_neg_listids(start);
 		nfa_restore_listids(start, listids);
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     f = fopen("log_nfarun.log","a");
     if (f)
     {
@@ -2731,7 +2732,7 @@ again:
 	 * first position. */
 	if (match == FALSE && start->c == NFA_MOPEN + 0)
 	{
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     fprintf(f, "(---) STARTSTATE\n");
 #endif
 	    addstate(nextlist, start, m, n, listid+1, &match);
@@ -2743,7 +2744,7 @@ again:
 	   goto again;
         }
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     fprintf(f, ">>> Thislist had %d states available: ", thislist->n);
     for (i = 0; i< thislist->n; i++)
 	fprintf(f, "%d  ", abs(thislist->t[i].state->id));
@@ -2757,7 +2758,7 @@ nextchar:
 	    reginput += n;
     } while (c || reginput_updated);
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     if (f != stderr)
 	fclose(f);
 #endif
@@ -2805,7 +2806,7 @@ nfa_regtry(start, col)
     reginput = regline + col;
     need_clear_subexpr = TRUE;
 
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     f = fopen("log_nfarun.log","a");
     if (f)
     {
@@ -2990,7 +2991,7 @@ nfa_regcomp(expr, re_flags)
      * 1. first pass to count size (so we can allocate space)
      * 2. second to emit code 
      */
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     FILE *f = fopen("log_nfarun.log", "a");
     if (f)
     {
@@ -3015,7 +3016,7 @@ nfa_regcomp(expr, re_flags)
     prog->regflags = regflags;
     prog->engine = &nfa_regengine;
     prog->nstate = nstate;
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     nfa_postfix_dump(expr, OK);
     nfa_dump(prog);
 #endif
@@ -3029,7 +3030,7 @@ out:
 fail:
     vim_free(prog);
     prog = NULL;
-#ifdef ENABLE_LOG_FILE
+#ifdef ENABLE_LOG
     nfa_postfix_dump(expr, FAIL);
 #endif
     goto out;
@@ -3144,3 +3145,6 @@ nfa_regexec_multi(rmp, win, buf, lnum, col, tm)
     return r;
 }
 
+#ifdef DEBUG
+#undef ENABLE_LOG
+#endif
