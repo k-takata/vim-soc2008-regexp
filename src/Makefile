@@ -421,7 +421,7 @@ CClink = $(CC)
 # It's automatically enabled with big features or IME support.
 # Note: Compile on a machine where setlocale() actually works, otherwise the
 # configure tests may fail.
-#CONF_OPT_MULTIBYTE = --enable-multibyte
+CONF_OPT_MULTIBYTE = --enable-multibyte
 
 # NLS - National Language Support
 # Uncomment this when you do not want to support translated messages, even
@@ -457,7 +457,7 @@ CClink = $(CC)
 #CONF_OPT_FEAT = --with-features=small
 #CONF_OPT_FEAT = --with-features=normal
 #CONF_OPT_FEAT = --with-features=big
-#CONF_OPT_FEAT = --with-features=huge
+CONF_OPT_FEAT = --with-features=huge
 
 # COMPILED BY - For including a specific e-mail address for ":version".
 #CONF_OPT_COMPBY = "--with-compiledby=John Doe <JohnDoe@yahoo.com>"

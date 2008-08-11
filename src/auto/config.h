@@ -8,7 +8,7 @@
 /* #undef EBCDIC */
 
 /* Define unless no X support found */
-#define HAVE_X11 1
+/* #undef HAVE_X11 */
 
 /* Define when terminfo support found */
 #define TERMINFO 1
@@ -185,7 +185,7 @@
 #define HAVE_ISWUPPER 1
 #define HAVE_USLEEP 1
 #define HAVE_UTIME 1
-/* #undef HAVE_BIND_TEXTDOMAIN_CODESET */
+#define HAVE_BIND_TEXTDOMAIN_CODESET 1
 
 /* Define if you do not have utime(), but do have the utimes() function. */
 #define HAVE_UTIMES 1
@@ -210,7 +210,7 @@
 #define HAVE_STRINGS_H 1
 #define HAVE_STROPTS_H 1
 /* #undef HAVE_SYS_ACCESS_H */
-#define HAVE_SYS_ACL_H 1
+/* #undef HAVE_SYS_ACL_H */
 /* #undef HAVE_SYS_DIR_H */
 #define HAVE_SYS_IOCTL_H 1
 /* #undef HAVE_SYS_NDIR_H */
@@ -235,7 +235,7 @@
 /* #undef HAVE_UTIL_DEBUG_H */
 /* #undef HAVE_UTIL_MSGI18N_H */
 #define HAVE_UTIME_H 1
-#define HAVE_X11_SUNKEYSYM_H 1
+/* #undef HAVE_X11_SUNKEYSYM_H */
 /* #undef HAVE_XM_XM_H */
 /* #undef HAVE_XM_XPMP_H */
 /* #undef HAVE_XM_TRAITP_H */
@@ -245,7 +245,7 @@
 /* #undef HAVE_XM_NOTEBOOK_H */
 /* #undef HAVE_X11_XPM_H */
 /* #undef HAVE_X11_XMU_EDITRES_H */
-#define HAVE_X11_SM_SMLIB_H 1
+/* #undef HAVE_X11_SM_SMLIB_H */
 
 /* Define to the type of the XpmAttributes type. */
 /* #undef XPMATTRIBUTES_TYPE */
@@ -275,13 +275,13 @@
 /* #undef FEAT_SMALL */
 
 /* Define if you want normal features. */
-#define FEAT_NORMAL 1
+/* #undef FEAT_NORMAL */
 
 /* Define if you want big features. */
 /* #undef FEAT_BIG */
 
 /* Define if you want huge features. */
-/* #undef FEAT_HUGE */
+#define FEAT_HUGE 1
 
 /* Define if you want to include the MzScheme interpreter. */
 /* #undef FEAT_MZSCHEME */
@@ -313,7 +313,7 @@
 /* #undef FEAT_CSCOPE */
 
 /* Define if you want to include multibyte support. */
-/* #undef FEAT_MBYTE */
+#define FEAT_MBYTE 1
 
 /* Define if you want to include fontset support. */
 /* #undef FEAT_XFONTSET */
@@ -331,10 +331,10 @@
 /* #undef FEAT_KDETOOLBAR */
 
 /* Define if GTK+ 2 is available. */
-#define HAVE_GTK2 1
+/* #undef HAVE_GTK2 */
 
 /* Define if GTK+ multihead support is available (requires GTK+ >= 2.1.1). */
-#define HAVE_GTK_MULTIHEAD 1
+/* #undef HAVE_GTK_MULTIHEAD */
 
 /* Define if your X has own locale library */
 /* #undef X_LOCALE */
@@ -343,10 +343,10 @@
 #define HAVE_DLFCN_H 1
 
 /* Define if there is a working gettext(). */
-/* #undef HAVE_GETTEXT */
+#define HAVE_GETTEXT 1
 
 /* Define if _nl_msg_cat_cntr is present. */
-/* #undef HAVE_NL_MSG_CAT_CNTR */
+#define HAVE_NL_MSG_CAT_CNTR 1
 
 /* Define if we have dlopen() */
 #define HAVE_DLOPEN 1
@@ -364,7 +364,7 @@
 /* #undef FEAT_SUN_WORKSHOP */
 
 /* Define if you want to include NetBeans integration. */
-/* #undef FEAT_NETBEANS_INTG */
+#define FEAT_NETBEANS_INTG 1
 
 /* Define default global runtime path */
 /* #undef RUNTIME_GLOBAL */
@@ -373,4 +373,4 @@
 /* #undef MODIFIED_BY */
 
 /* Define if you want XSMP interaction as well as vanilla swapfile safety */
-/* #undef USE_XSMP_INTERACT */
+#define USE_XSMP_INTERACT 1

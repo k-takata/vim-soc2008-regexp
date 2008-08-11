@@ -19,12 +19,12 @@ VIEWNAME	= view
 
 CC		= gcc
 DEFS		= -DHAVE_CONFIG_H
-CFLAGS		= -O2 -fno-strength-reduce -Wall
+CFLAGS		= -g -DDEBUG -Wall -Wshadow -Wmissing-prototypes
 CPPFLAGS	= 
 srcdir		= .
 
 LDFLAGS		=  -L/usr/local/lib
-LIBS		= -lncurses 
+LIBS		= -lncurses -lnsl 
 TAGPRG		= ctags -I INIT+ --fields=+S
 
 CPP		= gcc -E
@@ -32,9 +32,9 @@ CPP_MM		= M
 DEPEND_CFLAGS_FILTER = | sed 's+-I */+-isystem /+g'
 X_CFLAGS	=  
 X_LIBS_DIR	=  
-X_PRE_LIBS	=  -lSM -lICE
-X_EXTRA_LIBS	=  -lXdmcp -lSM -lICE
-X_LIBS		= -lXt -lX11
+X_PRE_LIBS	= 
+X_EXTRA_LIBS	= 
+X_LIBS		= 
 
 MZSCHEME_LIBS	= 
 MZSCHEME_SRC	= 
@@ -71,8 +71,8 @@ HANGULIN_OBJ	=
 WORKSHOP_SRC	= 
 WORKSHOP_OBJ	= 
 
-NETBEANS_SRC	= 
-NETBEANS_OBJ	= 
+NETBEANS_SRC	= netbeans.c
+NETBEANS_OBJ	= objects/netbeans.o
 
 RUBY		= 
 RUBY_SRC	= 
@@ -94,8 +94,8 @@ COMPILEDBY	=
 
 INSTALLVIMDIFF	= installvimdiff
 INSTALLGVIMDIFF	= installgvimdiff
-INSTALL_LANGS	= 
-INSTALL_TOOL_LANGS	= 
+INSTALL_LANGS	= install-languages
+INSTALL_TOOL_LANGS	= install-tool-languages
 
 ### Line break character as octal number for "tr"
 NL		= "\\012"
@@ -116,32 +116,32 @@ DATADIR		= ${prefix}/share
 MANDIR		= ${prefix}/man
 
 ### Do we have a GUI
-GUI_INC_LOC	= -I/usr/include/gtk-2.0 -I/usr/lib/gtk-2.0/include -I/usr/include/atk-1.0 -I/usr/include/cairo -I/usr/include/pango-1.0 -I/usr/include/glib-2.0 -I/usr/lib/glib-2.0/include -I/usr/include/freetype2 -I/usr/include/libpng12 -I/usr/include/pixman-1  
-GUI_LIB_LOC	=  
-GUI_SRC		= $(GTK_SRC)
-GUI_OBJ		= $(GTK_OBJ)
-GUI_DEFS	= $(GTK_DEFS)
-GUI_IPATH	= $(GTK_IPATH)
-GUI_LIBS_DIR	= $(GTK_LIBS_DIR)
-GUI_LIBS1	= $(GTK_LIBS1)
-GUI_LIBS2	= $(GTK_LIBS2)
-GUI_INSTALL	= $(GTK_INSTALL)
-GUI_TARGETS	= $(GTK_TARGETS)
-GUI_MAN_TARGETS	= $(GTK_MAN_TARGETS)
-GUI_TESTTARGET	= $(GTK_TESTTARGET)
-GUI_TESTARG	= $(GTK_TESTARG)
-GUI_BUNDLE	= $(GTK_BUNDLE)
+GUI_INC_LOC	= 
+GUI_LIB_LOC	= 
+GUI_SRC		= $(NONE_SRC)
+GUI_OBJ		= $(NONE_OBJ)
+GUI_DEFS	= $(NONE_DEFS)
+GUI_IPATH	= $(NONE_IPATH)
+GUI_LIBS_DIR	= $(NONE_LIBS_DIR)
+GUI_LIBS1	= $(NONE_LIBS1)
+GUI_LIBS2	= $(NONE_LIBS2)
+GUI_INSTALL	= $(NONE_INSTALL)
+GUI_TARGETS	= $(NONE_TARGETS)
+GUI_MAN_TARGETS	= $(NONE_MAN_TARGETS)
+GUI_TESTTARGET	= $(NONE_TESTTARGET)
+GUI_TESTARG	= $(NONE_TESTARG)
+GUI_BUNDLE	= $(NONE_BUNDLE)
 NARROW_PROTO	= 
 GUI_X_LIBS	= 
 MOTIF_LIBNAME	= 
-GTK_LIBNAME	= -lgtk-x11-2.0 -lgdk-x11-2.0 -latk-1.0 -lgdk_pixbuf-2.0 -lm -lpangocairo-1.0 -lpango-1.0 -lcairo -lgobject-2.0 -lgmodule-2.0 -ldl -lglib-2.0  
+GTK_LIBNAME	= 
 
 ### Any OS dependent extra source and object file
 OS_EXTRA_SRC	= 
 OS_EXTRA_OBJ	= 
 
 ### If the *.po files are to be translated to *.mo files.
-MAKEMO		= 
+MAKEMO		= yes
 
 # Make sure that "make first" will run "make all" once configure has done its
 # work.  This is needed when using the Makefile in the top directory.

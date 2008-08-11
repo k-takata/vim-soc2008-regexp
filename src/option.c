@@ -1693,7 +1693,7 @@ static struct vimoption
 			    {(char_u *)DFLT_MAXMEM, (char_u *)0L}},
     {"maxmempattern","mmp", P_NUM|P_VI_DEF,
 			    (char_u *)&p_mmp, PV_NONE,
-			    {(char_u *)1000L, (char_u *)0L}},
+			    {(char_u *)10000L, (char_u *)0L}},
     {"maxmemtot",   "mmt",  P_NUM|P_VI_DEF,
 			    (char_u *)&p_mmt, PV_NONE,
 			    {(char_u *)DFLT_MAXMEMTOT, (char_u *)0L}},
