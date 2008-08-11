@@ -63,15 +63,16 @@ typedef struct growarray
 
 #define GA_EMPTY    {0, 0, 0, 0, NULL}
 
-/*
- * This is here because regexp.h needs pos_T and below regprog_T is used.
- */
-#include "regexp.h"
-
 typedef struct window_S		win_T;
 typedef struct wininfo_S	wininfo_T;
 typedef struct frame_S		frame_T;
 typedef int			scid_T;		/* script ID */
+typedef struct file_buffer	buf_T;
+
+/*
+ * This is here because regexp.h needs pos_T and below regprog_T is used.
+ */
+#include "regexp.h"
 
 /*
  * This is here because gui.h needs the pos_T and win_T, and win_T needs gui.h
@@ -1140,8 +1141,6 @@ typedef struct qf_info_S qf_info_T;
  * A buffer is unallocated if there is no memfile for it.
  * A buffer is new if the associated file has never been loaded yet.
  */
-
-typedef struct file_buffer buf_T;
 
 struct file_buffer
 {

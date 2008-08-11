@@ -530,7 +530,7 @@ CClink = $(CC)
 #CFLAGS = -g -O2 -fno-strength-reduce -Wall -Wmissing-prototypes
 #CFLAGS = -g -Wall -Wmissing-prototypes
 #CFLAGS = -O6 -fno-strength-reduce -Wall -Wshadow -Wmissing-prototypes
-#CFLAGS = -g -DDEBUG -Wall -Wshadow -Wmissing-prototypes
+CFLAGS = -g -DDEBUG -Wall -Wshadow -Wextra
 #CFLAGS = -g -O2 '-DSTARTUPTIME="vimstartup"' -fno-strength-reduce -Wall -Wmissing-prototypes
 
 # EFENCE - Electric-Fence malloc debugging: catches memory accesses beyond
@@ -2519,7 +2519,7 @@ objects/popupmnu.o: popupmnu.c
 objects/quickfix.o: quickfix.c
 	$(CCC) -o $@ quickfix.c
 
-objects/regexp.o: regexp.c
+objects/regexp.o: regexp.c regexp_nfa.c
 	$(CCC) -o $@ regexp.c
 
 objects/screen.o: screen.c
@@ -2786,10 +2786,10 @@ objects/quickfix.o: quickfix.c vim.h auto/config.h feature.h os_unix.h \
   auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
   regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
   globals.h farsi.h arabic.h
-objects/regexp.o: regexp.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
-  ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
-  gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \
-  arabic.h
+objects/regexp.o: regexp.c regexp_nfa.c vim.h auto/config.h feature.h os_unix.h \
+  auto/osdef.h ascii.h keymap.h term.h macros.h option.h structs.h \
+  regexp.h gui.h gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h \
+  globals.h farsi.h arabic.h
 objects/screen.o: screen.c vim.h auto/config.h feature.h os_unix.h auto/osdef.h \
   ascii.h keymap.h term.h macros.h option.h structs.h regexp.h gui.h \
   gui_beval.h proto/gui_beval.pro ex_cmds.h proto.h globals.h farsi.h \

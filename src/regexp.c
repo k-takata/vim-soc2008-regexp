@@ -40,7 +40,10 @@
 
 #include "vim.h"
 
-#undef DEBUG
+
+//#undef DEBUG
+/*#define BT_REGEXP_DUMP*/		    /* show/save debugging data when BT engine is used */
+/*#define BT_REGEXP_LOG*/		    /* save the data to a file instead of displaying it */
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -232,6 +235,96 @@
 #define RE_MARK		207	/* mark cmp  Match mark position */
 #define RE_VISUAL	208	/*	Match Visual area */
 
+/* For NFA. TODO(RE) is there a way of sharing definitions above? */
+enum
+{
+    NFA_SPLIT = -1024,
+    NFA_MATCH,
+    NFA_SKIP_CHAR,		    /* matches a 0-length char */
+    NFA_END_NEG_RANGE,		    /* Used when expanding [^ab] */
+
+    NFA_CONCAT,
+    NFA_OR,
+    NFA_STAR,
+    NFA_PLUS,
+    NFA_QUEST,
+    NFA_QUEST_NONGREEDY,
+    NFA_NOT,			    /* used for [^ab] negated char ranges */
+
+    NFA_BOL,
+    NFA_EOL,
+    NFA_BOW,
+    NFA_EOW,
+    NFA_NEWL,
+    NFA_ZSTART,
+    NFA_ZEND,
+    NFA_MOPEN_INVISIBLE,
+    NFA_MCLOSE_INVISIBLE,
+    NFA_START_INVISIBLE,
+    NFA_END_INVISIBLE,
+
+    /* The following are used only in the postfix form, not in the NFA */
+    NFA_PREV_ATOM_NO_WIDTH,
+    NFA_PREV_ATOM_NO_WIDTH_NEG,
+    NFA_PREV_ATOM_JUST_BEFORE,
+    NFA_PREV_ATOM_JUST_BEFORE_NEG,
+    NFA_PREV_ATOM_LIKE_PATTERN,
+
+    NFA_MOPEN,
+    NFA_MCLOSE = NFA_MOPEN + NSUBEXP,
+
+    /* NFA_FIRST_NL */
+    NFA_ANY = NFA_MCLOSE + NSUBEXP, /*	Match any one character. */
+    NFA_ANYOF,		/*	Match any character in this string. */
+    NFA_ANYBUT,		/*	Match any character not in this string. */
+    NFA_IDENT,		/*	Match identifier char */
+    NFA_SIDENT,		/*	Match identifier char but no digit */
+    NFA_KWORD,		/*	Match keyword char */
+    NFA_SKWORD,		/*	Match word char but no digit */
+    NFA_FNAME,		/*	Match file name char */
+    NFA_SFNAME,		/*	Match file name char but no digit */
+    NFA_PRINT,		/*	Match printable char */
+    NFA_SPRINT,		/*	Match printable char but no digit */
+    NFA_WHITE,		/*	Match whitespace char */
+    NFA_NWHITE,		/*	Match non-whitespace char */
+    NFA_DIGIT,		/*	Match digit char */
+    NFA_NDIGIT,		/*	Match non-digit char */
+    NFA_HEX,		/*	Match hex char */
+    NFA_NHEX,		/*	Match non-hex char */
+    NFA_OCTAL,		/*	Match octal char */
+    NFA_NOCTAL,		/*	Match non-octal char */
+    NFA_WORD,		/*	Match word char */
+    NFA_NWORD,		/*	Match non-word char */
+    NFA_HEAD,		/*	Match head char */
+    NFA_NHEAD,		/*	Match non-head char */
+    NFA_ALPHA,		/*	Match alpha char */
+    NFA_NALPHA,		/*	Match non-alpha char */
+    NFA_LOWER,		/*	Match lowercase char */
+    NFA_NLOWER,		/*	Match non-lowercase char */
+    NFA_UPPER,		/*	Match uppercase char */
+    NFA_NUPPER,		/*	Match non-uppercase char */
+    NFA_FIRST_NL = NFA_ANY + ADD_NL,
+    NFA_LAST_NL = NFA_NUPPER + ADD_NL,
+
+/* Character classes [:alnum:] etc */
+    NFA_CLASS_ALNUM,
+    NFA_CLASS_ALPHA,
+    NFA_CLASS_BLANK,
+    NFA_CLASS_CNTRL,
+    NFA_CLASS_DIGIT,
+    NFA_CLASS_GRAPH,
+    NFA_CLASS_LOWER,
+    NFA_CLASS_PRINT,
+    NFA_CLASS_PUNCT,
+    NFA_CLASS_SPACE,
+    NFA_CLASS_UPPER,
+    NFA_CLASS_XDIGIT,
+    NFA_CLASS_TAB,
+    NFA_CLASS_RETURN,
+    NFA_CLASS_BACKSPACE,
+    NFA_CLASS_ESCAPE
+};
+
 /*
  * Magic characters have a special meaning, they don't match literally.
  * Magic characters are negative.  This separates them from literal characters
@@ -327,6 +420,7 @@ toggle_Magic(x)
  * rc_did_emsg and return NULL */
 #define EMSG_RET_NULL(m) return (EMSG(m), rc_did_emsg = TRUE, (void *)NULL)
 #define EMSG_M_RET_NULL(m, c) return (EMSG2((m), (c) ? "" : "\\"), rc_did_emsg = TRUE, (void *)NULL)
+#define EMSG_M_RET_FAIL(m, c) return (EMSG2((m), (c) ? "" : "\\"), rc_did_emsg = TRUE, FAIL)
 #define EMSG_RET_FAIL(m) return (EMSG(m), rc_did_emsg = TRUE, FAIL)
 #define EMSG_ONE_RET_NULL EMSG_M_RET_NULL(_("E369: invalid item in %s%%[]"), reg_magic == MAGIC_ALL)
 
@@ -337,7 +431,7 @@ static int cstrncmp __ARGS((char_u *s1, char_u *s2, int *n));
 static char_u *cstrchr __ARGS((char_u *, int));
 
 #ifdef DEBUG
-static void	regdump __ARGS((char_u *, regprog_T *));
+static void	regdump __ARGS((char_u *, bt_regprog_T *));
 static char_u	*regprop __ARGS((char_u *));
 #endif
 
@@ -467,7 +561,7 @@ get_char_class(pp)
 #define CLASS_ESCAPE 15
     };
 #define CLASS_NONE 99
-    int i;
+    unsigned int i;
 
     if ((*pp)[1] == ':')
     {
@@ -675,6 +769,9 @@ static int	read_limits __ARGS((long *, long *));
 static void	regtail __ARGS((char_u *, char_u *));
 static void	regoptail __ARGS((char_u *, char_u *));
 
+static struct regengine bt_regengine;
+static struct regengine nfa_regengine;
+
 /*
  * Return TRUE if compiled regular expression "prog" can match a line break.
  */
@@ -733,6 +830,7 @@ get_equi_class(pp)
 /*
  * Produce the bytes for equivalence class "c".
  * Currently only handles latin1, latin9 and utf-8.
+ * NOTE: When changing this function, also change nfa_emit_equi_class()
  */
     static void
 reg_equi_class(c)
@@ -967,7 +1065,8 @@ skip_regexp(startp, dirc, magic, newp)
 }
 
 /*
- * vim_regcomp() - compile a regular expression into internal code
+ * bt_regcomp() - compile a regular expression into internal code for the
+ * traditional back track matcher.
  * Returns the program in allocated space.  Returns NULL for an error.
  *
  * We can't allocate space until we know how big the compiled form will be,
@@ -986,12 +1085,12 @@ skip_regexp(startp, dirc, magic, newp)
  * of the structure of the compiled regexp.
  * "re_flags": RE_MAGIC and/or RE_STRING.
  */
-    regprog_T *
-vim_regcomp(expr, re_flags)
+    static regprog_T *
+bt_regcomp(expr, re_flags)
     char_u	*expr;
     int		re_flags;
 {
-    regprog_T	*r;
+    bt_regprog_T    *r;
     char_u	*scan;
     char_u	*longest;
     int		len;
@@ -1018,7 +1117,7 @@ vim_regcomp(expr, re_flags)
 #endif
 
     /* Allocate space. */
-    r = (regprog_T *)lalloc(sizeof(regprog_T) + regsize, TRUE);
+    r = (bt_regprog_T *)lalloc(sizeof(bt_regprog_T) + regsize, TRUE);
     if (r == NULL)
 	return NULL;
 
@@ -1114,7 +1213,8 @@ vim_regcomp(expr, re_flags)
 #ifdef DEBUG
     regdump(expr, r);
 #endif
-    return r;
+    r->engine = &bt_regengine;
+    return (regprog_T *)r;
 }
 
 /*
@@ -1542,6 +1642,24 @@ regpiece(flagp)
     return ret;
 }
 
+static char_u	*classchars = (char_u *)".iIkKfFpPsSdDxXoOwWhHaAlLuU";
+static int	classcodes[] = {ANY, IDENT, SIDENT, KWORD, SKWORD,
+				    FNAME, SFNAME, PRINT, SPRINT,
+				    WHITE, NWHITE, DIGIT, NDIGIT,
+				    HEX, NHEX, OCTAL, NOCTAL,
+				    WORD, NWORD, HEAD, NHEAD,
+				    ALPHA, NALPHA, LOWER, NLOWER,
+				    UPPER, NUPPER
+				    };
+static int	nfa_classcodes[] = {NFA_ANY, NFA_IDENT, NFA_SIDENT, NFA_KWORD,NFA_SKWORD,
+				NFA_FNAME, NFA_SFNAME, NFA_PRINT, NFA_SPRINT,
+				NFA_WHITE, NFA_NWHITE, NFA_DIGIT, NFA_NDIGIT,
+				NFA_HEX, NFA_NHEX, NFA_OCTAL, NFA_NOCTAL,
+				NFA_WORD, NFA_NWORD, NFA_HEAD, NFA_NHEAD,
+				NFA_ALPHA, NFA_NALPHA, NFA_LOWER, NFA_NLOWER,
+				NFA_UPPER, NFA_NUPPER
+				};
+
 /*
  * regatom - the lowest level
  *
@@ -1558,15 +1676,6 @@ regatom(flagp)
     int		    cpo_lit;	    /* 'cpoptions' contains 'l' flag */
     int		    cpo_bsl;	    /* 'cpoptions' contains '\' flag */
     int		    c;
-    static char_u   *classchars = (char_u *)".iIkKfFpPsSdDxXoOwWhHaAlLuU";
-    static int	    classcodes[] = {ANY, IDENT, SIDENT, KWORD, SKWORD,
-				    FNAME, SFNAME, PRINT, SPRINT,
-				    WHITE, NWHITE, DIGIT, NDIGIT,
-				    HEX, NHEX, OCTAL, NOCTAL,
-				    WORD, NWORD, HEAD, NHEAD,
-				    ALPHA, NALPHA, LOWER, NLOWER,
-				    UPPER, NUPPER
-				    };
     char_u	    *p;
     int		    extra = 0;
 
@@ -3050,8 +3159,8 @@ typedef struct regbehind_S
 } regbehind_T;
 
 static char_u	*reg_getline __ARGS((linenr_T lnum));
-static long	vim_regexec_both __ARGS((char_u *line, colnr_T col, proftime_T *tm));
-static long	regtry __ARGS((regprog_T *prog, colnr_T col));
+static long	bt_regexec_both __ARGS((char_u *line, colnr_T col, proftime_T *tm));
+static long	regtry __ARGS((bt_regprog_T *prog, colnr_T col));
 static void	cleanup_subexpr __ARGS((void));
 #ifdef FEAT_SYN_HL
 static void	cleanup_zsubexpr __ARGS((void));
@@ -3108,7 +3217,7 @@ static colnr_T	ireg_maxcol;
 /*
  * Sometimes need to save a copy of a line.  Since alloc()/free() is very
  * slow, we keep one allocated piece of memory and only re-allocate it when
- * it's too small.  It's freed in vim_regexec_both() when finished.
+ * it's too small.  It's freed in bt_regexec_both() when finished.
  */
 static char_u	*reg_tofree = NULL;
 static unsigned	reg_tofreelen;
@@ -3273,8 +3382,8 @@ static lpos_T	reg_endzpos[NSUBEXP];	/* idem, end pos */
  *
  * Return TRUE if there is a match, FALSE if not.
  */
-    int
-vim_regexec(rmp, line, col)
+    static int
+bt_regexec(rmp, line, col)
     regmatch_T	*rmp;
     char_u	*line;	/* string to match against */
     colnr_T	col;	/* column to start looking for match */
@@ -3289,7 +3398,7 @@ vim_regexec(rmp, line, col)
     ireg_icombine = FALSE;
 #endif
     ireg_maxcol = 0;
-    return (vim_regexec_both(line, col, NULL) != 0);
+    return (bt_regexec_both(line, col, NULL) != 0);
 }
 
 #if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
@@ -3297,8 +3406,8 @@ vim_regexec(rmp, line, col)
 /*
  * Like vim_regexec(), but consider a "\n" in "line" to be a line break.
  */
-    int
-vim_regexec_nl(rmp, line, col)
+    static int
+bt_regexec_nl(rmp, line, col)
     regmatch_T	*rmp;
     char_u	*line;	/* string to match against */
     colnr_T	col;	/* column to start looking for match */
@@ -3313,7 +3422,7 @@ vim_regexec_nl(rmp, line, col)
     ireg_icombine = FALSE;
 #endif
     ireg_maxcol = 0;
-    return (vim_regexec_both(line, col, NULL) != 0);
+    return (bt_regexec_both(line, col, NULL) != 0);
 }
 #endif
 
@@ -3325,8 +3434,8 @@ vim_regexec_nl(rmp, line, col)
  * Return zero if there is no match.  Return number of lines contained in the
  * match otherwise.
  */
-    long
-vim_regexec_multi(rmp, win, buf, lnum, col, tm)
+    static long
+bt_regexec_multi(rmp, win, buf, lnum, col, tm)
     regmmatch_T	*rmp;
     win_T	*win;		/* window in which to search or NULL */
     buf_T	*buf;		/* buffer in which to search */
@@ -3352,7 +3461,7 @@ vim_regexec_multi(rmp, win, buf, lnum, col, tm)
 
     /* Need to switch to buffer "buf" to make vim_iswordc() work. */
     curbuf = buf;
-    r = vim_regexec_both(NULL, col, tm);
+    r = bt_regexec_both(NULL, col, tm);
     curbuf = save_curbuf;
 
     return r;
@@ -3364,12 +3473,12 @@ vim_regexec_multi(rmp, win, buf, lnum, col, tm)
  */
 /*ARGSUSED*/
     static long
-vim_regexec_both(line, col, tm)
+bt_regexec_both(line, col, tm)
     char_u	*line;
     colnr_T	col;		/* column to start looking for match */
     proftime_T	*tm;		/* timeout limit or NULL */
 {
-    regprog_T	*prog;
+    bt_regprog_T    *prog;
     char_u	*s;
     long	retval = 0L;
 
@@ -3395,14 +3504,14 @@ vim_regexec_both(line, col, tm)
 
     if (REG_MULTI)
     {
-	prog = reg_mmatch->regprog;
+	prog = (bt_regprog_T *)reg_mmatch->regprog;
 	line = reg_getline((linenr_T)0);
 	reg_startpos = reg_mmatch->startpos;
 	reg_endpos = reg_mmatch->endpos;
     }
     else
     {
-	prog = reg_match->regprog;
+	prog = (bt_regprog_T *)reg_match->regprog;
 	reg_startp = reg_match->startp;
 	reg_endp = reg_match->endp;
     }
@@ -3643,7 +3752,7 @@ unref_extmatch(em)
  */
     static long
 regtry(prog, col)
-    regprog_T	*prog;
+    bt_regprog_T    *prog;
     colnr_T	col;
 {
     reginput = regline + col;
@@ -3775,7 +3884,7 @@ regmatch(scan)
 #define RA_NOMATCH	5	/* didn't match */
 
   /* Make "regstack" and "backpos" empty.  They are allocated and freed in
-   * vim_regexec_both() to reduce malloc()/free() calls. */
+   * bt_regexec_both() to reduce malloc()/free() calls. */
   regstack.ga_len = 0;
   backpos.ga_len = 0;
 
@@ -3784,7 +3893,7 @@ regmatch(scan)
    */
   for (;;)
   {
-    /* Some patterns my cause a long time to match, even though they are not
+    /* Some patterns may cause a long time to match, even though they are not
      * illegal.  E.g., "\([a-z]\+\)\+Q".  Allow breaking them with CTRL-C. */
     fast_breakcheck();
 
@@ -5792,9 +5901,14 @@ regnext(p)
     static int
 prog_magic_wrong()
 {
-    if (UCHARAT(REG_MULTI
-		? reg_mmatch->regprog->program
-		: reg_match->regprog->program) != REGMAGIC)
+    regprog_T	*prog;
+
+    prog = REG_MULTI ? reg_mmatch->regprog : reg_match->regprog;
+    if (prog->engine == &nfa_regengine)
+	/* For NFA matcher we don't check the magic */
+	return FALSE;
+
+    if (UCHARAT(((bt_regprog_T *)prog)->program) != REGMAGIC)
     {
 	EMSG(_(e_re_corr));
 	return TRUE;
@@ -6027,14 +6141,25 @@ re_num_cmp(val, scan)
     static void
 regdump(pattern, r)
     char_u	*pattern;
-    regprog_T	*r;
+    bt_regprog_T	*r;
 {
     char_u  *s;
     int	    op = EXACTLY;	/* Arbitrary non-END op. */
     char_u  *next;
     char_u  *end = NULL;
+    FILE    *f;
 
-    printf("\r\nregcomp(%s):\r\n", pattern);
+#ifndef BT_REGEXP_DUMP
+    return;
+#endif
+#ifdef BT_REGEXP_LOG
+    f = fopen("bt_regexp_log.log","a");
+#else
+    f = stdout;
+#endif
+    if (f == NULL)
+	return;
+    fprintf(f, "-------------------------------------\n\r\nregcomp(%s):\r\n", pattern);
 
     s = r->program + 1;
     /*
@@ -6044,18 +6169,18 @@ regdump(pattern, r)
     while (op != END || s <= end)
     {
 	op = OP(s);
-	printf("%2d%s", (int)(s - r->program), regprop(s)); /* Where, what. */
+	fprintf(f, "%2d%s", (int)(s - r->program), regprop(s)); /* Where, what. */
 	next = regnext(s);
 	if (next == NULL)	/* Next ptr. */
-	    printf("(0)");
+	    fprintf(f, "(0)");
 	else
-	    printf("(%d)", (int)((s - r->program) + (next - s)));
+	    fprintf(f, "(%d)", (int)((s - r->program) + (next - s)));
 	if (end < next)
 	    end = next;
 	if (op == BRACE_LIMITS)
 	{
 	    /* Two short ints */
-	    printf(" minval %ld, maxval %ld", OPERAND_MIN(s), OPERAND_MAX(s));
+	    fprintf(f, " minval %ld, maxval %ld", OPERAND_MIN(s), OPERAND_MAX(s));
 	    s += 8;
 	}
 	s += 3;
@@ -6064,23 +6189,29 @@ regdump(pattern, r)
 		|| op == EXACTLY)
 	{
 	    /* Literal string, where present. */
+	    fprintf(f, "xxxxxxxxx\n");
 	    while (*s != NUL)
-		printf("%c", *s++);
+		fprintf(f, "%c", *s++);
+	    fprintf(f, "\nxxxxxxxxx\n");
 	    s++;
 	}
-	printf("\r\n");
+	fprintf(f, "\r\n");
     }
 
     /* Header fields of interest. */
     if (r->regstart != NUL)
-	printf("start `%s' 0x%x; ", r->regstart < 256
+	fprintf(f, "start `%s' 0x%x; ", r->regstart < 256
 		? (char *)transchar(r->regstart)
 		: "multibyte", r->regstart);
     if (r->reganch)
-	printf("anchored; ");
+	fprintf(f, "anchored; ");
     if (r->regmust != NULL)
-	printf("must have \"%s\"", r->regmust);
-    printf("\r\n");
+	fprintf(f, "must have \"%s\"", r->regmust);
+    fprintf(f, "\r\n");
+
+#ifdef BT_REGEXP_LOG
+    fclose(f);
+#endif
 }
 
 /*
@@ -6093,237 +6224,237 @@ regprop(op)
     char_u	    *p;
     static char_u   buf[50];
 
-    (void) strcpy(buf, ":");
+    (void) STRCPY(buf, ":");
 
-    switch (OP(op))
+    switch ((int) OP(op))
     {
       case BOL:
-	p = "BOL";
+	p = (char_u *)"BOL";
 	break;
       case EOL:
-	p = "EOL";
+	p = (char_u *)"EOL";
 	break;
       case RE_BOF:
-	p = "BOF";
+	p = (char_u *)"BOF";
 	break;
       case RE_EOF:
-	p = "EOF";
+	p = (char_u *)"EOF";
 	break;
       case CURSOR:
-	p = "CURSOR";
+	p = (char_u *)"CURSOR";
 	break;
       case RE_VISUAL:
-	p = "RE_VISUAL";
+	p = (char_u *)"RE_VISUAL";
 	break;
       case RE_LNUM:
-	p = "RE_LNUM";
+	p = (char_u *)"RE_LNUM";
 	break;
       case RE_MARK:
-	p = "RE_MARK";
+	p = (char_u *)"RE_MARK";
 	break;
       case RE_COL:
-	p = "RE_COL";
+	p = (char_u *)"RE_COL";
 	break;
       case RE_VCOL:
-	p = "RE_VCOL";
+	p = (char_u *)"RE_VCOL";
 	break;
       case BOW:
-	p = "BOW";
+	p = (char_u *)"BOW";
 	break;
       case EOW:
-	p = "EOW";
+	p = (char_u *)"EOW";
 	break;
       case ANY:
-	p = "ANY";
+	p = (char_u *)"ANY";
 	break;
       case ANY + ADD_NL:
-	p = "ANY+NL";
+	p = (char_u *)"ANY+NL";
 	break;
       case ANYOF:
-	p = "ANYOF";
+	p = (char_u *)"ANYOF";
 	break;
       case ANYOF + ADD_NL:
-	p = "ANYOF+NL";
+	p = (char_u *)"ANYOF+NL";
 	break;
       case ANYBUT:
-	p = "ANYBUT";
+	p = (char_u *)"ANYBUT";
 	break;
       case ANYBUT + ADD_NL:
-	p = "ANYBUT+NL";
+	p = (char_u *)"ANYBUT+NL";
 	break;
       case IDENT:
-	p = "IDENT";
+	p = (char_u *)"IDENT";
 	break;
       case IDENT + ADD_NL:
-	p = "IDENT+NL";
+	p = (char_u *)"IDENT+NL";
 	break;
       case SIDENT:
-	p = "SIDENT";
+	p = (char_u *)"SIDENT";
 	break;
       case SIDENT + ADD_NL:
-	p = "SIDENT+NL";
+	p = (char_u *)"SIDENT+NL";
 	break;
       case KWORD:
-	p = "KWORD";
+	p = (char_u *)"KWORD";
 	break;
       case KWORD + ADD_NL:
-	p = "KWORD+NL";
+	p = (char_u *)"KWORD+NL";
 	break;
       case SKWORD:
-	p = "SKWORD";
+	p = (char_u *)"SKWORD";
 	break;
       case SKWORD + ADD_NL:
-	p = "SKWORD+NL";
+	p = (char_u *)"SKWORD+NL";
 	break;
       case FNAME:
-	p = "FNAME";
+	p = (char_u *)"FNAME";
 	break;
       case FNAME + ADD_NL:
-	p = "FNAME+NL";
+	p = (char_u *)"FNAME+NL";
 	break;
       case SFNAME:
-	p = "SFNAME";
+	p = (char_u *)"SFNAME";
 	break;
       case SFNAME + ADD_NL:
-	p = "SFNAME+NL";
+	p = (char_u *)"SFNAME+NL";
 	break;
       case PRINT:
-	p = "PRINT";
+	p = (char_u *)"PRINT";
 	break;
       case PRINT + ADD_NL:
-	p = "PRINT+NL";
+	p = (char_u *)"PRINT+NL";
 	break;
       case SPRINT:
-	p = "SPRINT";
+	p = (char_u *)"SPRINT";
 	break;
       case SPRINT + ADD_NL:
-	p = "SPRINT+NL";
+	p = (char_u *)"SPRINT+NL";
 	break;
       case WHITE:
-	p = "WHITE";
+	p = (char_u *)"WHITE";
 	break;
       case WHITE + ADD_NL:
-	p = "WHITE+NL";
+	p = (char_u *)"WHITE+NL";
 	break;
       case NWHITE:
-	p = "NWHITE";
+	p = (char_u *)"NWHITE";
 	break;
       case NWHITE + ADD_NL:
-	p = "NWHITE+NL";
+	p = (char_u *)"NWHITE+NL";
 	break;
       case DIGIT:
-	p = "DIGIT";
+	p = (char_u *)"DIGIT";
 	break;
       case DIGIT + ADD_NL:
-	p = "DIGIT+NL";
+	p = (char_u *)"DIGIT+NL";
 	break;
       case NDIGIT:
-	p = "NDIGIT";
+	p = (char_u *)"NDIGIT";
 	break;
       case NDIGIT + ADD_NL:
-	p = "NDIGIT+NL";
+	p = (char_u *)"NDIGIT+NL";
 	break;
       case HEX:
-	p = "HEX";
+	p = (char_u *)"HEX";
 	break;
       case HEX + ADD_NL:
-	p = "HEX+NL";
+	p = (char_u *)"HEX+NL";
 	break;
       case NHEX:
-	p = "NHEX";
+	p = (char_u *)"NHEX";
 	break;
       case NHEX + ADD_NL:
-	p = "NHEX+NL";
+	p = (char_u *)"NHEX+NL";
 	break;
       case OCTAL:
-	p = "OCTAL";
+	p = (char_u *)"OCTAL";
 	break;
       case OCTAL + ADD_NL:
-	p = "OCTAL+NL";
+	p = (char_u *)"OCTAL+NL";
 	break;
       case NOCTAL:
-	p = "NOCTAL";
+	p = (char_u *)"NOCTAL";
 	break;
       case NOCTAL + ADD_NL:
-	p = "NOCTAL+NL";
+	p = (char_u *)"NOCTAL+NL";
 	break;
       case WORD:
-	p = "WORD";
+	p = (char_u *)"WORD";
 	break;
       case WORD + ADD_NL:
-	p = "WORD+NL";
+	p = (char_u *)"WORD+NL";
 	break;
       case NWORD:
-	p = "NWORD";
+	p = (char_u *)"NWORD";
 	break;
       case NWORD + ADD_NL:
-	p = "NWORD+NL";
+	p = (char_u *)"NWORD+NL";
 	break;
       case HEAD:
-	p = "HEAD";
+	p = (char_u *)"HEAD";
 	break;
       case HEAD + ADD_NL:
-	p = "HEAD+NL";
+	p = (char_u *)"HEAD+NL";
 	break;
       case NHEAD:
-	p = "NHEAD";
+	p = (char_u *)"NHEAD";
 	break;
       case NHEAD + ADD_NL:
-	p = "NHEAD+NL";
+	p = (char_u *)"NHEAD+NL";
 	break;
       case ALPHA:
-	p = "ALPHA";
+	p = (char_u *)"ALPHA";
 	break;
       case ALPHA + ADD_NL:
-	p = "ALPHA+NL";
+	p = (char_u *)"ALPHA+NL";
 	break;
       case NALPHA:
-	p = "NALPHA";
+	p = (char_u *)"NALPHA";
 	break;
       case NALPHA + ADD_NL:
-	p = "NALPHA+NL";
+	p = (char_u *)"NALPHA+NL";
 	break;
       case LOWER:
-	p = "LOWER";
+	p = (char_u *)"LOWER";
 	break;
       case LOWER + ADD_NL:
-	p = "LOWER+NL";
+	p = (char_u *)"LOWER+NL";
 	break;
       case NLOWER:
-	p = "NLOWER";
+	p = (char_u *)"NLOWER";
 	break;
       case NLOWER + ADD_NL:
-	p = "NLOWER+NL";
+	p = (char_u *)"NLOWER+NL";
 	break;
       case UPPER:
-	p = "UPPER";
+	p = (char_u *)"UPPER";
 	break;
       case UPPER + ADD_NL:
-	p = "UPPER+NL";
+	p = (char_u *)"UPPER+NL";
 	break;
       case NUPPER:
-	p = "NUPPER";
+	p = (char_u *)"NUPPER";
 	break;
       case NUPPER + ADD_NL:
-	p = "NUPPER+NL";
+	p = (char_u *)"NUPPER+NL";
 	break;
       case BRANCH:
-	p = "BRANCH";
+	p = (char_u *)"BRANCH";
 	break;
       case EXACTLY:
-	p = "EXACTLY";
+	p = (char_u *)"EXACTLY";
 	break;
       case NOTHING:
-	p = "NOTHING";
+	p = (char_u *)"NOTHING";
 	break;
       case BACK:
-	p = "BACK";
+	p = (char_u *)"BACK";
 	break;
       case END:
-	p = "END";
+	p = (char_u *)"END";
 	break;
       case MOPEN + 0:
-	p = "MATCH START";
+	p = (char_u *)"MATCH START";
 	break;
       case MOPEN + 1:
       case MOPEN + 2:
@@ -6334,11 +6465,11 @@ regprop(op)
       case MOPEN + 7:
       case MOPEN + 8:
       case MOPEN + 9:
-	sprintf(buf + STRLEN(buf), "MOPEN%d", OP(op) - MOPEN);
+	sprintf((char *)buf + STRLEN(buf), "MOPEN%d", OP(op) - MOPEN);
 	p = NULL;
 	break;
       case MCLOSE + 0:
-	p = "MATCH END";
+	p = (char_u *)"MATCH END";
 	break;
       case MCLOSE + 1:
       case MCLOSE + 2:
@@ -6349,7 +6480,7 @@ regprop(op)
       case MCLOSE + 7:
       case MCLOSE + 8:
       case MCLOSE + 9:
-	sprintf(buf + STRLEN(buf), "MCLOSE%d", OP(op) - MCLOSE);
+	sprintf((char *)buf + STRLEN(buf), "MCLOSE%d", OP(op) - MCLOSE);
 	p = NULL;
 	break;
       case BACKREF + 1:
@@ -6361,14 +6492,14 @@ regprop(op)
       case BACKREF + 7:
       case BACKREF + 8:
       case BACKREF + 9:
-	sprintf(buf + STRLEN(buf), "BACKREF%d", OP(op) - BACKREF);
+	sprintf((char *)buf + STRLEN(buf), "BACKREF%d", OP(op) - BACKREF);
 	p = NULL;
 	break;
       case NOPEN:
-	p = "NOPEN";
+	p = (char_u *)"NOPEN";
 	break;
       case NCLOSE:
-	p = "NCLOSE";
+	p = (char_u *)"NCLOSE";
 	break;
 #ifdef FEAT_SYN_HL
       case ZOPEN + 1:
@@ -6380,7 +6511,7 @@ regprop(op)
       case ZOPEN + 7:
       case ZOPEN + 8:
       case ZOPEN + 9:
-	sprintf(buf + STRLEN(buf), "ZOPEN%d", OP(op) - ZOPEN);
+	sprintf((char *)buf + STRLEN(buf), "ZOPEN%d", OP(op) - ZOPEN);
 	p = NULL;
 	break;
       case ZCLOSE + 1:
@@ -6392,7 +6523,7 @@ regprop(op)
       case ZCLOSE + 7:
       case ZCLOSE + 8:
       case ZCLOSE + 9:
-	sprintf(buf + STRLEN(buf), "ZCLOSE%d", OP(op) - ZCLOSE);
+	sprintf((char *)buf + STRLEN(buf), "ZCLOSE%d", OP(op) - ZCLOSE);
 	p = NULL;
 	break;
       case ZREF + 1:
@@ -6404,36 +6535,36 @@ regprop(op)
       case ZREF + 7:
       case ZREF + 8:
       case ZREF + 9:
-	sprintf(buf + STRLEN(buf), "ZREF%d", OP(op) - ZREF);
+	sprintf((char *)buf + STRLEN(buf), "ZREF%d", OP(op) - ZREF);
 	p = NULL;
 	break;
 #endif
       case STAR:
-	p = "STAR";
+	p = (char_u *)"STAR";
 	break;
       case PLUS:
-	p = "PLUS";
+	p = (char_u *)"PLUS";
 	break;
       case NOMATCH:
-	p = "NOMATCH";
+	p = (char_u *)"NOMATCH";
 	break;
       case MATCH:
-	p = "MATCH";
+	p = (char_u *)"MATCH";
 	break;
       case BEHIND:
-	p = "BEHIND";
+	p = (char_u *)"BEHIND";
 	break;
       case NOBEHIND:
-	p = "NOBEHIND";
+	p = (char_u *)"NOBEHIND";
 	break;
       case SUBPAT:
-	p = "SUBPAT";
+	p = (char_u *)"SUBPAT";
 	break;
       case BRACE_LIMITS:
-	p = "BRACE_LIMITS";
+	p = (char_u *)"BRACE_LIMITS";
 	break;
       case BRACE_SIMPLE:
-	p = "BRACE_SIMPLE";
+	p = (char_u *)"BRACE_SIMPLE";
 	break;
       case BRACE_COMPLEX + 0:
       case BRACE_COMPLEX + 1:
@@ -6445,25 +6576,25 @@ regprop(op)
       case BRACE_COMPLEX + 7:
       case BRACE_COMPLEX + 8:
       case BRACE_COMPLEX + 9:
-	sprintf(buf + STRLEN(buf), "BRACE_COMPLEX%d", OP(op) - BRACE_COMPLEX);
+	sprintf((char *)buf + STRLEN(buf), "BRACE_COMPLEX%d", OP(op) - BRACE_COMPLEX);
 	p = NULL;
 	break;
 #ifdef FEAT_MBYTE
       case MULTIBYTECODE:
-	p = "MULTIBYTECODE";
+	p = (char_u *)"MULTIBYTECODE";
 	break;
 #endif
       case NEWL:
-	p = "NEWL";
+	p = (char_u *)"NEWL";
 	break;
       default:
-	sprintf(buf + STRLEN(buf), "corrupt %d", OP(op));
+	sprintf((char *)buf + STRLEN(buf), "corrupt %d", OP(op));
 	p = NULL;
 	break;
     }
     if (p != NULL)
-	(void) strcat(buf, p);
-    return buf;
+	(void) STRCAT(buf, p);
+    return (char_u *)buf;
 }
 #endif
 
@@ -7291,3 +7422,158 @@ reg_submatch(no)
     return retval;
 }
 #endif
+
+static regengine_T bt_regengine =
+{
+    bt_regcomp,
+    bt_regexec,
+#if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
+    bt_regexec_nl,
+#endif
+    bt_regexec_multi
+};
+
+
+#include "regexp_nfa.c"
+
+static struct regengine nfa_regengine =
+{
+    nfa_regcomp,
+    nfa_regexec,
+#if defined(FEAT_MODIFY_FNAME) || defined(FEAT_EVAL) \
+	|| defined(FIND_REPLACE_DIALOG) || defined(PROTO)
+    nfa_regexec_nl,
+#endif
+    nfa_regexec_multi
+};
+
+/* Which regexp engine to use? Needed for vim_regcomp() */
+static int regexp_engine;
+#define	    AUTOMATIC_ENGINE	0
+#define	    BACKTRACKING_ENGINE	1
+#define	    NFA_ENGINE		2
+static char_u regname[][30] = {
+		    "AUTOMATIC Regexp Engine", 
+		    "BACKTACKING Regexp Engine",
+		    "NFA Regexp Engine"
+			    };
+
+/*
+ * vim_regcomp() - compile a regular expression into internal code
+ * Returns the program in allocated space.  Returns NULL for an error.
+ */
+    regprog_T *
+vim_regcomp(expr, re_flags)
+    char_u *expr;
+    int re_flags;
+{
+    regprog_T   *prog = NULL;
+    syntax_error = FALSE;
+    /* Check for prefix "\%#=", that sets the regexp engine */
+    if ((STRLEN(expr)) >= 5)
+	if (STRNCMP(expr, "\\%#=", 4) == 0)
+	{
+	    int newengine = expr[4] - '0';
+	    if (newengine == AUTOMATIC_ENGINE || newengine == BACKTRACKING_ENGINE 
+		|| newengine == NFA_ENGINE)
+	    {
+		regexp_engine = expr[4] - '0';
+		expr += 5;
+		regparse += 5;
+		EMSG3("New regexp mode selected (%d): %s", regexp_engine, regname[newengine]);
+	    }
+	    else
+	    {
+		EMSG("\\%#= can only be followed by 0, 1, or 2. \
+		The automatic engine will be used ");
+		regexp_engine = AUTOMATIC_ENGINE;
+	    }
+	}
+/*    printf("REGEXP: %s\n", expr);	*/
+    /* First try the NFA engine	*/
+    if (regexp_engine != BACKTRACKING_ENGINE)
+        prog = nfa_regengine.regcomp(expr, re_flags);
+    else
+	prog = bt_regengine.regcomp(expr, re_flags);
+
+    if (prog == NULL)	    /* error compiling regexp with initial engine */
+    {
+#ifdef DEBUG
+	if (regexp_engine != BACKTRACKING_ENGINE)	    /* debugging log for NFA */
+	{
+	    FILE *f;
+	    f=fopen("debug.log","a");
+	    if (f)
+	    {
+		    if (!syntax_error)
+			fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
+		    else
+			fprintf(f,"Syntax error in \"%s\"\n", expr);
+		    fclose(f);
+	    }
+	    /*
+	    if (syntax_error)
+		EMSG("NFA Regexp: Syntax Error !");
+	    */
+	}
+#endif
+	/* If NFA engine failed, then revert to the backtracking engine. 
+	 * Except when there was a syntax error, which was properly handled by NFA engine */
+	if (regexp_engine == AUTOMATIC_ENGINE)
+	    if (!syntax_error)
+		prog = bt_regengine.regcomp(expr, re_flags);
+
+    }	    /* endif prog==NULL */
+
+    return prog;
+}
+
+/*
+ * Match a regexp against a string.
+ * "rmp->regprog" is a compiled regexp as returned by vim_regcomp().
+ * Uses curbuf for line count and 'iskeyword'.
+ *
+ * Return TRUE if there is a match, FALSE if not.
+ */
+    int
+vim_regexec(rmp, line, col)
+    regmatch_T *rmp;
+    char_u      *line;  /* string to match against */
+    colnr_T     col;    /* column to start looking for match */
+{
+    return rmp->regprog->engine->regexec(rmp, line, col);
+}
+
+/*
+ * Like vim_regexec(), but consider a "\n" in "line" to be a line break.
+ */
+    int
+vim_regexec_nl(rmp, line, col)
+    regmatch_T *rmp;
+    char_u *line;
+    colnr_T col;
+{
+    return rmp->regprog->engine->regexec_nl(rmp, line, col);
+}
+
+/*
+ * Match a regexp against multiple lines.
+ * "rmp->regprog" is a compiled regexp as returned by vim_regcomp().
+ * Uses curbuf for line count and 'iskeyword'.
+ *
+ * Return zero if there is no match.  Return number of lines contained in the
+ * match otherwise.
+ */
+    long
+vim_regexec_multi(rmp, win, buf, lnum, col, tm)
+    regmmatch_T *rmp;
+    win_T       *win;           /* window in which to search or NULL */
+    buf_T       *buf;           /* buffer in which to search */
+    linenr_T    lnum;           /* nr of line to start looking for match */
+    colnr_T     col;            /* column to start looking for match */
+    proftime_T	*tm;		/* timeout limit or NULL */
+{
+    return rmp->regprog->engine->regexec_multi(rmp, win, buf, lnum, col, tm);
+}
+
