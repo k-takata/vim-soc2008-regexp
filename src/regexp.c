@@ -41,7 +41,7 @@
 #include "vim.h"
 
 
-/*#undef DEBUG*/
+#undef DEBUG
 /*#define BT_REGEXP_DUMP*/		    /* show/save debugging data when BT engine is used */
 /*#define BT_REGEXP_LOG*/		    /* save the data to a file instead of displaying it */
 
@@ -7479,10 +7479,6 @@ vim_regcomp(expr, re_flags)
 		regexp_engine = AUTOMATIC_ENGINE;
 	    }
 	}
-#ifdef DEBUG
-    nfa_regengine.expr = expr;
-    bt_regengine.expr = expr;
-#endif
 /*    printf("REGEXP: %s\n", expr);	*/
     /* First try the NFA engine	*/
     if (regexp_engine != BACKTRACKING_ENGINE)

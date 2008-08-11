@@ -40,6 +40,11 @@ static int nstate_max;	/* Upper bound of estimated number of states. */
 static int nfa_just_found_braces = FALSE;  
 
 
+void nfa_save_listids(nfa_state_T *start, int *list);
+void nfa_restore_listids(nfa_state_T *start, int *list);
+void nfa_set_null_listids(nfa_state_T *start);
+void nfa_set_neg_listids(nfa_state_T *start);
+
 /* helper fuctions used when doing re2post() parsing */
 #define EMIT(c)	do {				\
 		    if (post_ptr >= post_end)	\
@@ -1308,6 +1313,13 @@ static char code[50];
 static FILE *debugf;
 static void nfa_set_code(int c)
 {
+int addnl = FALSE;
+    if (c >= NFA_FIRST_NL && c <= NFA_LAST_NL)
+    {
+	addnl = TRUE;
+	c -= ADD_NL;
+    }
+
     STRCPY(code, "");
     switch (c)
     {
@@ -1409,6 +1421,9 @@ static void nfa_set_code(int c)
             STRCPY(code, "CHAR(x)");
             code[5] = c;
     }
+
+    if (addnl == TRUE)
+	STRCAT(code, " + NEWLINE ");
     
 }
 
@@ -1972,7 +1987,19 @@ addstate(l, state, m, off, lid, match)
 	fprintf(f, "\n\n>>> E999: Added state NFA_NOT to a list ... Something went \
 wrong ! Why wasn't it processed already? \n\n");
 #endif
+	    break;
 
+	case NFA_MOPEN_INVISIBLE:
+	case NFA_MCLOSE_INVISIBLE:
+	    addstate(l, state->out, m, off, lid, match);
+	    break;
+
+	/* If this state is reached, then a recursive call of nfa_regmatch() 
+	 * succeeded. the next call saves the found submatches in the 
+	 * first state after the "invisible" branch. */
+	case NFA_END_INVISIBLE:
+	    addstate(l, state->out, m, off, lid, match);
+	    break;
 
 	case NFA_MOPEN + 0:
 	case NFA_MOPEN + 1:
@@ -2146,7 +2173,60 @@ static int check_char_class(class, c)
     return FAIL;
 }
 
-static 	regsub_T m;
+void nfa_set_neg_listids(start)
+    nfa_state_T	    *start;
+{
+    if (start == NULL)
+	return;
+    if (start->lastlist >= 0)
+    {
+	start->lastlist = -1;
+	nfa_set_neg_listids(start->out);
+	nfa_set_neg_listids(start->out1);
+    }
+}
+
+void nfa_set_null_listids(start)
+    nfa_state_T	    *start;
+{
+    if (start == NULL)
+	return;
+    if (start->lastlist == -1)
+    {
+	start->lastlist = 0;
+	nfa_set_null_listids(start->out);
+	nfa_set_null_listids(start->out1);
+    }
+}
+
+void nfa_save_listids(start, list)
+    nfa_state_T	    *start;
+    int		    *list;
+{
+    if (start == NULL)
+	return;
+    if (start->lastlist != -1)
+    {
+	list[abs(start->id)] = start->lastlist;
+	start->lastlist = -1;
+	nfa_save_listids(start->out, list);
+	nfa_save_listids(start->out1, list);
+    }
+}
+
+void nfa_restore_listids(start, list)
+    nfa_state_T	    *start;
+    int		    *list;
+{
+    if (start == NULL)
+	return;
+    if (start->lastlist == -1)
+    {
+	start->lastlist = list[abs(start->id)];
+	nfa_restore_listids(start->out, list);
+	nfa_restore_listids(start->out1, list);
+    }
+}
 
 /*
  * nfa_regmatch - main matching routine
@@ -2157,24 +2237,24 @@ static 	regsub_T m;
  * Note: Caller must ensure that: start != NULL.
  */
     static int
-nfa_regmatch(start, submatch)
+nfa_regmatch(start, submatch, m)
     nfa_state_T		*start;
     regsub_T		*submatch;
+    regsub_T		*m;
 {
     int		c, n, i = 0, result, size = 0;
     int		match = FALSE, negate = FALSE;
-    int		flag = 0;
+    int		flag = 0, old_reglnum = -1;
     int		reginput_updated = FALSE;
     thread_T	*t;
-    char_u	*cc, *old_reginput = reginput;
+    char_u	*cc, *old_reginput = NULL;
+    char_u	*old_regline = NULL;
     nfa_state_T	*matchstate = NULL;
-    static List list[3];
-    static int	listid;
+    List	list[3];
+    int		listid;
     List	*thislist, *nextlist, *neglist;
-
-#ifdef ENABLE_LOG_FILE
+    int		*listids = NULL;
     int		j = 0;
-#endif
 
     c = -1;
     listid = 1;
@@ -2208,12 +2288,14 @@ nfa_regmatch(start, submatch)
 
     thislist = &list[0];
     thislist->n = 0;
+    nextlist = &list[1];
+    nextlist->n = 0;
     neglist = &list[2];
     neglist->n = 0;
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "(---) STARTSTATE\n");
 #endif
-    addstate(thislist, start, &m, 0, listid, &match);
+    addstate(thislist, start, m, 0, listid, &match);
 
     /* run for each character */
     do {
@@ -2241,6 +2323,7 @@ again:
 	++listid;
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "------------------------------------------\n");
+    fprintf(f, ">>> Reginput is \"%s\"\n", reginput);
     fprintf(f, ">>> Advanced one character ... Current char is %c (code %d) \n", c, (int)c);
     fprintf(f, ">>> Thislist has %d states available: ", thislist->n);
     for (i = 0; i< thislist->n; i++)
@@ -2304,7 +2387,13 @@ again:
 	     * successfully, so return control to the parent nfa_regmatch(). 
 	     * Submatches are automatically remembered. */
 	    case NFA_END_INVISIBLE:
-		return TRUE;
+		if (start->c == NFA_MOPEN + 0)
+		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		else
+		{   
+		    *m = t->sub;
+		    match = TRUE;
+		}
 		break;
 
 	    case NFA_START_INVISIBLE:
@@ -2312,16 +2401,36 @@ again:
 		 * current concat matches at this position. The concat ends with the
 		 * node NFA_END_INVISIBLE */
 		old_reginput = reginput;
+		old_regline = regline;
+		old_reglnum = reglnum;
+		if (listids == NULL) 
+		{
+		    listids = (int *) lalloc(sizeof(int) * nstate, TRUE);
+		    if (listids == NULL)
+		    {
+			EMSG("E999: (NFA) Could not allocate memory for branch traversal !");
+			return 0;
+		    }
+		}
 #ifdef ENABLE_LOG_FILE
     if (f != stderr)
 	fclose(f);
-
 #endif
-		result = nfa_regmatch(t->state->out, submatch);
+		/* Have to clear the listid field of the NFA nodes, so that
+		 * nfa_regmatch() and addstate() can run properly after recursion. */
+		nfa_save_listids(start, listids);
+		nfa_set_null_listids(start);
+		result = nfa_regmatch(t->state->out, submatch, m);
+		nfa_set_neg_listids(start);
+		nfa_restore_listids(start, listids);
 #ifdef ENABLE_LOG_FILE
     f = fopen("log_nfarun.log","a");
     if (f)
     {
+	fprintf(f, "****************************\n");
+	fprintf(f, "FINISHED RUNNING nfa_regmatch() recursively\n");
+	fprintf(f, "MATCH = %s\n", result == TRUE ? "OK" : "FALSE");
+	fprintf(f, "****************************\n");
     }
     else
     {
@@ -2331,12 +2440,31 @@ again:
 #endif
 		if (result == TRUE)
 		{
+		    /* Restore position in input text */
 		    reginput = old_reginput;
+		    regline = old_regline;
+		    reglnum = old_reglnum;
+		    /* Copy submatch info from the recursive call */
+		    if (REG_MULTI)
+			for (j = 1; j < NSUBEXP; j++)
+			{   
+			    t->sub.startpos[j] = m->startpos[j];
+			    t->sub.endpos[j] = m->endpos[j];
+			}
+		    else
+			for (j = 1; j < NSUBEXP; j++)
+			{
+			    t->sub.start[j] = m->start[j];
+			    t->sub.end[j] = m->end[j];
+			}
 		    /* t->state->out1 is the corresponding END_INVISIBLE node */
-		    addstate(nextlist, t->state->out1->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out1->out, &t->sub, 0, listid, &match);
 		}
 		else
-		    return 0;
+		{
+		    /* continue with next input char */
+		    reginput = old_reginput;
+		}
 		break;
 
 	    case NFA_BOL:
@@ -2598,13 +2726,15 @@ again:
 
 	/* The first found match is the leftmost one, but there may be a 
 	 * longer one. Keep running the NFA, but don't start from the 
-	 * beginning */
-	if (match == FALSE)
+	 * beginning. Also, do not add the start state in recursive calls of
+	 * nfa_regmatch(), because recursive calls should only start in the 
+	 * first position. */
+	if (match == FALSE && start->c == NFA_MOPEN + 0)
 	{
 #ifdef ENABLE_LOG_FILE
     fprintf(f, "(---) STARTSTATE\n");
 #endif
-	    addstate(nextlist, start, &m, n, listid+1, &match);
+	    addstate(nextlist, start, m, n, listid+1, &match);
 	}
 
         if (reginput_updated)
@@ -2635,7 +2765,7 @@ nextchar:
     /* if match state has a successor S, then S must match at the
      * start position in the input text too (it is probably a concat)
      */
-    if (match == TRUE && matchstate->out != NULL)
+    if (match == TRUE && matchstate != NULL && matchstate->out != NULL)
     {	
 	if (REG_MULTI)
 	{
@@ -2654,25 +2784,12 @@ theend:
     vim_free(list[1].t);
     vim_free(list[2].t);
     list[0].t = list[1].t = list[2].t = NULL;
+    if (listids != NULL)
+	vim_free(listids);
 
     return match;
 }
-/*
-    if (REG_MULTI)
-    {
-        vim_memset(submatch->startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-        vim_memset(submatch->endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-        vim_memset(m.startpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-        vim_memset(m.endpos, 0xff, sizeof(lpos_T) * NSUBEXP);
-    }
-    else
-    {
-        vim_memset(submatch->start, 0, sizeof(char_u *) * NSUBEXP);
-        vim_memset(submatch->end, 0, sizeof(char_u *) * NSUBEXP);
-        vim_memset(m.start, 0, sizeof(char_u *) * NSUBEXP);
-        vim_memset(m.end, 0, sizeof(char_u *) * NSUBEXP);
-    }
-*/
+
 /*
  * nfa_regtry - try match of "prog" with at regline["col"].
  * Returns 0 for failure, number of lines contained in the match otherwise.
@@ -2683,7 +2800,7 @@ nfa_regtry(start, col)
     colnr_T	col;
 {
     int		i;
-    regsub_T	sub;
+    regsub_T	sub, m;
 
     reginput = regline + col;
     need_clear_subexpr = TRUE;
@@ -2694,7 +2811,6 @@ nfa_regtry(start, col)
     {
 	fprintf(f, "\n\n\n\n\n\n\t\t=======================================================\n");
 	fprintf(f, "		=======================================================\n");
-	fprintf(f, "\tCompiled regexp \"%s\" \n", nfa_regengine.expr);
 	fprintf(f, "\tInput text is \"%s\" \n", reginput);
 	fprintf(f, "		=======================================================\n\n\n\n\n\n\n");
 	nfa_print_state(f, start, 0);
@@ -2721,7 +2837,7 @@ nfa_regtry(start, col)
         vim_memset(m.end, 0, sizeof(char_u *) * NSUBEXP);
     }
 
-    if (nfa_regmatch(start, &sub) == FALSE)
+    if (nfa_regmatch(start, &sub, &m) == FALSE)
 	return 0;
 
     cleanup_subexpr();
