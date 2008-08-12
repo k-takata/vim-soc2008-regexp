@@ -190,7 +190,6 @@ OK - [a-]
 OK - [-./[:alnum:]_~]\+
 OK - [\]\^\-\\]\+
 OK - [[.a.]]\+
-OK - [[=a=]]\+
 OK - abc[0-9]*ddd
 OK - abc[0-9]*ddd
 OK - \_[0-9]\+
@@ -223,6 +222,5 @@ OK - .*John\&.*Bob
 OK - \v(test1)@=.*yep
 OK - [[:alpha:]]\{-2,6}
 OK - [^[=a=]]\+
-OK - [[:alpha:][=a=]]\+
 OK - 
 OK - \v(())

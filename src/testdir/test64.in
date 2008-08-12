@@ -245,7 +245,7 @@ STARTTEST
 :call add(tl, ['[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])		" filename regexp
 :call add(tl, ['[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars 
 :call add(tl, ['[[.a.]]\+', 'aa', 'aa'])								" collation elem
-:call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])							" equivalence classes
+:"call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])							" equivalence classes, and will fail unless compiled with multi-byte
 :call add(tl, ['abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
 :call add(tl, ['abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
 :call add(tl, ['\_[0-9]\+', 'asfi9888u', '9888'])
@@ -285,8 +285,8 @@ STARTTEST
 
 :"""" Combining different tests and features
 :call add(tl, ['[[:alpha:]]\{-2,6}', '787abcdiuhsasiuhb4', 'ab'])
-:call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])							" equivalence classes + not
-:call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
+:call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
+:"call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])	" will fail unless compiled with multi-byte
 :call add(tl, ['', 'abcd', ''])
 :call add(tl, ['\v(())', 'any possible text', ''])
 
