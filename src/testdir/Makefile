@@ -6,7 +6,7 @@ VIMPROG = ../vim
 
 # Uncomment this line for using valgrind.
 # The output goes into a file "valgrind.$PID" (sorry, no test number).
-# VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --logfile=valgrind
+# VALGRIND = valgrind --tool=memcheck --leak-check=yes --num-callers=15 --log-file=valgrind
 
 SCRIPTS = test1.out test2.out test3.out test4.out test5.out test6.out \
 		test7.out test8.out test9.out test10.out test11.out \
