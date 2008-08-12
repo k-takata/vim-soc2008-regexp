@@ -4,10 +4,10 @@
 
 
 #ifdef DEBUG
-#define ENABLE_LOG		/* Comment this out to disable log files. They can get pretty big */
+/*#define ENABLE_LOG*/		/* Comment this out to disable log files. They can get pretty big */
 #endif
 
-#define NEWSTACK		/* Comment this out to use the old version of POP/PUSH in post2nfa(). */
+#define NEWSTACK		/* Comment this out to use the old (non-portable) version of POP/PUSH in post2nfa(). */
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
 #define	    NFA_BRACES_MAXLIMIT		    10	    
@@ -1655,7 +1655,6 @@ post2nfa(postfix, end, nfa_calc_size)
 {
     int		*p, mopen, mclose;
     Frag_T	*stack = NULL, *stackp = NULL, *stack_end = NULL;
-//    Frag_T	*stack2 = NULL, *stackp2 = NULL, *stack_end2 = NULL;
     Frag_T	e1, e2, e;
     nfa_state_T	*s, *s1, *matchstate;
 
@@ -1693,11 +1692,8 @@ post2nfa(postfix, end, nfa_calc_size)
     {
 	/* Allocate space for the stack. Max states on the stack : nstate */
 	stack = (Frag_T *) lalloc((nstate+1)*sizeof(Frag_T), TRUE);
-//	stack2 = (Frag_T *) lalloc((nstate+1)*sizeof(Frag_T), TRUE);
 	stackp = stack;
-//	stackp2 = stack2;
 	stack_end = stack + NFA_STACK_SIZE;
-//	stack_end2 = stack2 + NFA_STACK_SIZE;
     }
 
     for (p = postfix; p < end; ++p)
@@ -1922,14 +1918,11 @@ post2nfa(postfix, end, nfa_calc_size)
     e = POP();
     if (stackp != stack)
 	EMSG_RET_NULL("E999: (NFA regexp) (While converting from postfix to NFA), too many states left on stack ");
-//    if (stackp2 != stack2)
-//	EMSG_RET_NULL("E999: (NFA regexp) (While converting from postfix to NFA), too many states left on stack ");
 
     if (istate >= nstate)
 	EMSG_RET_NULL("E999: (NFA regexp) Not enough space to store the whole NFA ");
 
     vim_free(stack);
-//    vim_free(stack2);
 
     matchstate = &state_ptr[istate++]; /* the match state */
     matchstate->c = NFA_MATCH;
