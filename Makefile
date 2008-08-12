@@ -4,7 +4,8 @@
 
 #VIMPROG = /usr/bin/vim
 #VIMPROG = /soc2008/vim-new/src/vim
-VIMPROG = /soc2008/vim72c-re/src/vim
+#VIMPROG = /soc2008/vim72/src/vim
+VIMPROG = /soc2008/vim72cool/src/vim
 #VIMPROG = ../vim-old/src/vim
 #VIMPROG = ../vim-both/src/vim
 
@@ -23,7 +24,11 @@ SCRIPTS_GUI = test16.out
 
 all: new nongui
 
-new: nolog regexptest.out
+new: nolog test64.out
+	@echo
+	@cat test.log
+
+64: nolog test64.out
 	@echo
 	@cat test.log
 
@@ -38,6 +43,11 @@ new: nolog regexptest.out
 	@echo ALL DONE
 
 49: test49.out
+	@echo
+	@cat test.log
+	@echo ALL DONE
+
+59: test59.out
 	@echo
 	@cat test.log
 	@echo ALL DONE
