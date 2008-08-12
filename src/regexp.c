@@ -41,7 +41,7 @@
 #include "vim.h"
 
 
-//#undef DEBUG
+#undef DEBUG
 /*#define BT_REGEXP_DUMP*/		    /* show/save debugging data when BT engine is used */
 /*#define BT_REGEXP_LOG*/		    /* save the data to a file instead of displaying it */
 
@@ -7490,7 +7490,11 @@ vim_regcomp(expr, re_flags)
 		regexp_engine = AUTOMATIC_ENGINE;
 	    }
 	}
-/*    printf("REGEXP: %s\n", expr);	*/
+//     printf("\nREGEXP: %s\n", expr);
+#ifdef DEBUG	
+    bt_regengine.expr = expr;
+    nfa_regengine.expr = expr;
+#endif
     /* First try the NFA engine	*/
     if (regexp_engine != BACKTRACKING_ENGINE)
         prog = nfa_regengine.regcomp(expr, re_flags);
@@ -7512,6 +7516,8 @@ vim_regcomp(expr, re_flags)
 			fprintf(f,"Syntax error in \"%s\"\n", expr);
 		    fclose(f);
 	    }
+	    else
+		EMSG("(NFA) Could not open \"debug.log\" to write !!!");
 	    /*
 	    if (syntax_error)
 		EMSG("NFA Regexp: Syntax Error !");
@@ -7525,6 +7531,7 @@ vim_regcomp(expr, re_flags)
 		prog = bt_regengine.regcomp(expr, re_flags);
 
     }	    /* endif prog==NULL */
+
 
     return prog;
 }
