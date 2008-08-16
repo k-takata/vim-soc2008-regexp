@@ -1,4 +1,4 @@
-Results of regexptest:
+Results of test64:
 OK - ab
 OK - b
 OK - bc*
@@ -224,3 +224,5 @@ OK - [[:alpha:]]\{-2,6}
 OK - [^[=a=]]\+
 OK - 
 OK - \v(())
+OK - [[:alpha:][=a=]]\+
+OK - [[=a=]]\+

@@ -40,10 +40,16 @@
 
 #include "vim.h"
 
+/* Uncomment this if you never want to see debugging logs or files related
+ * to regular expressionsm, even when compiling with -DDEBUG. */
+/*#undef DEBUG*/
 
-/*#undef DEBUG*/			    /* Should we not care about debugging info? */
-/*#define BT_REGEXP_DUMP*/		    /* show/save debugging data when BT engine is used */
-/*#define BT_REGEXP_LOG*/		    /* save the data to a file instead of displaying it */
+#ifdef DEBUG
+/* show/save debugging data when BT engine is used */
+/*#define BT_REGEXP_DUMP*/
+/* save the data to a file instead of displaying it */
+/*#define BT_REGEXP_LOG*/
+#endif
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -248,27 +254,31 @@ enum
     NFA_STAR,
     NFA_PLUS,
     NFA_QUEST,
-    NFA_QUEST_NONGREEDY,
+    NFA_QUEST_NONGREEDY,	    /* Non-greedy version of \? */
     NFA_NOT,			    /* used for [^ab] negated char ranges */
 
-    NFA_BOL,
-    NFA_EOL,
-    NFA_BOW,
-    NFA_EOW,
+    NFA_BOL,			    /* ^    Begin line */
+    NFA_EOL,			    /* $    End line */
+    NFA_BOW,			    /* \<   Begin word */
+    NFA_EOW,			    /* \>   End word */
+    NFA_BOF,			    /* \%^  Begin file */
+    NFA_EOF,			    /* \%$  End file */
     NFA_NEWL,
-    NFA_ZSTART,
-    NFA_ZEND,
-    NFA_MOPEN_INVISIBLE,
-    NFA_MCLOSE_INVISIBLE,
+    NFA_ZSTART,			    /* Used for \zs */
+    NFA_ZEND,			    /* Used for \ze */
+    NFA_NOPEN,			    /* Start of subexpression marked with \%( */
+    NFA_NCLOSE,			    /* End of subexpression marked with \%( ... \) */
     NFA_START_INVISIBLE,
     NFA_END_INVISIBLE,
+    NFA_MULTIBYTE,		    /* Next nodes in NFA are part of the same multibyte char */
+    NFA_END_MULTIBYTE,		    /* End of multibyte char in the NFA */
 
     /* The following are used only in the postfix form, not in the NFA */
-    NFA_PREV_ATOM_NO_WIDTH,
-    NFA_PREV_ATOM_NO_WIDTH_NEG,
-    NFA_PREV_ATOM_JUST_BEFORE,
-    NFA_PREV_ATOM_JUST_BEFORE_NEG,
-    NFA_PREV_ATOM_LIKE_PATTERN,
+    NFA_PREV_ATOM_NO_WIDTH,	    /* Used for \@= */
+    NFA_PREV_ATOM_NO_WIDTH_NEG,	    /* Used for \@! */
+    NFA_PREV_ATOM_JUST_BEFORE,	    /* Used for \@<= */
+    NFA_PREV_ATOM_JUST_BEFORE_NEG,  /* Used for \@<! */
+    NFA_PREV_ATOM_LIKE_PATTERN,	    /* Used for \@> */
 
     NFA_MOPEN,
     NFA_MCLOSE = NFA_MOPEN + NSUBEXP,
@@ -430,8 +440,10 @@ static int re_multi_type __ARGS((int));
 static int cstrncmp __ARGS((char_u *s1, char_u *s2, int *n));
 static char_u *cstrchr __ARGS((char_u *, int));
 
-#ifdef DEBUG
+#ifdef BT_REGEXP_DUMP
 static void	regdump __ARGS((char_u *, bt_regprog_T *));
+#endif
+#ifdef DEBUG
 static char_u	*regprop __ARGS((char_u *));
 #endif
 
@@ -1049,6 +1061,10 @@ skip_regexp(startp, dirc, magic, newp)
 			p = *newp + (p - startp);
 		}
 		if (*newp != NULL)
+		    /* TODO(RE) This is probably a bug. 
+		     * STRMOVE is defined as "mch_memmove((d), (s), STRLEN(s) + 1)"
+		     * but the previous call was "mch_memmove(p, p+1, STRLEN(p))" 
+		     */
 		    STRMOVE(p, p + 1);
 		else
 		    ++p;
@@ -1210,7 +1226,7 @@ bt_regcomp(expr, re_flags)
 	    r->regmlen = len;
 	}
     }
-#ifdef DEBUG
+#ifdef BT_REGEXP_DUMP
     regdump(expr, r);
 #endif
     r->engine = &bt_regengine;
@@ -6133,7 +6149,7 @@ re_num_cmp(val, scan)
 }
 
 
-#ifdef DEBUG
+#ifdef BT_REGEXP_DUMP
 
 /*
  * regdump - dump a regexp onto stdout in vaguely comprehensible form
@@ -6149,9 +6165,6 @@ regdump(pattern, r)
     char_u  *end = NULL;
     FILE    *f;
 
-#ifndef BT_REGEXP_DUMP
-    return;
-#endif
 #ifdef BT_REGEXP_LOG
     f = fopen("bt_regexp_log.log","a");
 #else
@@ -6189,7 +6202,7 @@ regdump(pattern, r)
 		|| op == EXACTLY)
 	{
 	    /* Literal string, where present. */
-	    fprintf(f, "xxxxxxxxx\n");
+	    fprintf(f, "\nxxxxxxxxx\n");
 	    while (*s != NUL)
 		fprintf(f, "%c", *s++);
 	    fprintf(f, "\nxxxxxxxxx\n");
@@ -6213,7 +6226,9 @@ regdump(pattern, r)
     fclose(f);
 #endif
 }
+#endif	    /* BT_REGEXP_DUMP */
 
+#ifdef DEBUG
 /*
  * regprop - printable representation of opcode
  */
@@ -6596,7 +6611,7 @@ regprop(op)
 	(void) STRCAT(buf, p);
     return (char_u *)buf;
 }
-#endif
+#endif	    /* DEBUG */
 
 #ifdef FEAT_MBYTE
 static void mb_decompose __ARGS((int c, int *c1, int *c2, int *c3));

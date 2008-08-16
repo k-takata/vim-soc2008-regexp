@@ -2,9 +2,9 @@
 /******************** Below are NFA regexp *********************/
 /* File nfa_regexp.c is included automa[gt]ically in regexp.c, at the end. */
 
-
 #ifdef DEBUG
-/*#define ENABLE_LOG*/		/* Comment this out to disable log files. They can get pretty big */
+/* Comment this out to disable log files. They can get pretty big */
+/*#define ENABLE_LOG*/
 #endif
 
 /* Upper limit allowed for {m,n} repetitions handled by NFA */
@@ -50,6 +50,16 @@ void nfa_set_neg_listids(nfa_state_T *start);
 			return FAIL;		\
 		    *post_ptr++ = c;		\
 		} while (0)
+
+#define EMIT_MBYTE(c,regparse)					    \
+			    EMIT(NFA_MULTIBYTE);		    \
+			    for (i = 0; i < (*mb_char2len)(c); i++) \
+			    {					    \
+				EMIT((regparse)[i]);		    \
+				EMIT(NFA_CONCAT);		    \
+			    }					    \
+			    EMIT(NFA_END_MULTIBYTE);		    \
+			    EMIT(NFA_CONCAT);			    \
 
 /*
  * Initialize internal variables before NFA compilation.
@@ -378,6 +388,39 @@ int	glue = neg == TRUE ? NFA_CONCAT : NFA_OR;
 
 static int nfa_reg(int paren);
 
+/* Increments the pointer "p" by one (multi-byte) character */
+static inline void nfa_inc(char_u **p)
+{
+#ifdef FEAT_MBYTE
+    if (has_mbyte)
+	mb_ptr2char_adv(p);
+    else
+#endif
+	*p = *p + 1;
+}
+
+/* Decrements the pointer "p" by one (multi-byte) character */
+static inline void nfa_dec(char_u **p)
+{
+#ifdef FEAT_MBYTE
+char_u *p2, *oldp;
+    if (has_mbyte)
+    {
+	oldp = *p;
+	/* Try to find the multibyte char
+	 * that advances to the current position */
+	do
+	{   
+	    *p = *p - 1;
+	    p2 = *p;
+	    mb_ptr2char_adv(&p2);
+	} while ( p2 != oldp );
+    }
+#else
+    *p = *p - 1;
+#endif
+}
+
 /*
  *  nfa_regatom - the lowest level
  *
@@ -397,21 +440,35 @@ nfa_regatom()
 {
     int		c, charclass, equiclass, collclass, got_coll_char; 
     char_u	*p, *endp;
+static char_u	*old_regparse;
     int		extra = 0, first, emit_range, negated, result;
-    int		startc = -1, endc = -1, oldstartc = -1;
+    int		startc = -1, endc = -1, oldstartc = -1, i;
     int		cpo_lit;	/* 'cpoptions' contains 'l' flag */
     int		cpo_bsl;	/* 'cpoptions' contains '\' flag */
-    int		glue;
+    int		glue;		/* ID that will "glue" nodes together */
+    int		clen;		/* Length of the current char */
 
     cpo_lit = vim_strchr(p_cpo, CPO_LITERAL) != NULL;
     cpo_bsl = vim_strchr(p_cpo, CPO_BACKSL) != NULL;
 
+    old_regparse = regparse;
     c = getchr();
-    /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
-     * Fail and revert to old engine. TODO(RE) Implement composing chars */
 #ifdef FEAT_MBYTE
-    if ((*mb_char2len)(c)>1)
-        return FAIL;	    /* unsupported for now */
+    clen = (*mb_char2len)(c);
+#else
+    clen = 1;
+#endif
+    /* NFA engine doesn't yet support mbyte composing chars => bug when search mbyte chars.
+     * Fail and revert to old engine. TODO(RE) Implement composing chars 
+     * But normal multibyte characters are ok. */
+#ifdef FEAT_MBYTE
+    if (has_mbyte && (*mb_char2len)(c)>1)
+    {
+	if (enc_utf8 && utf_iscomposing(c))
+	    return FAIL;
+	else
+	    goto nfa_do_multibyte;
+    }
 #endif
     switch (c)
     {
@@ -573,6 +630,19 @@ nfa_regatom()
 			    EMIT(NFA_ZEND);
 			    nfa_has_zend = TRUE;
 			    break;
+			case 1:
+			case 2:
+			case 3:
+			case 4:
+			case 5:
+			case 6:
+			case 7:
+			case 8:
+			case 9:
+			case '(':
+			    /* TODO(RE) Implement \z1..\z9 and \z( 
+			     * not yet supported */
+			    return FAIL;
 			default:
 			    syntax_error = TRUE;
 			    EMSG_RET_FAIL("E999: Unknown operator following '\\z'");
@@ -580,8 +650,57 @@ nfa_regatom()
 		    break;
 
 		case Magic('%'):
-		      /* not supported yet */
-		      return FAIL;
+			c = no_Magic(getchr());
+			switch (c)
+			{
+			    /* () without a back reference */
+			    case '(':
+				if (nfa_reg(REG_NPAREN) == FAIL)
+				    return FAIL;
+				EMIT(NFA_NOPEN);
+				break;
+
+			    /* Catch \%^ and \%$ regardless of where they appear in the
+			     * pattern -- regardless of whether or not it makes sense. */
+			    case '^':
+				EMIT(NFA_BOF);
+				/* Not yet supported */
+				return FAIL;
+				break;
+
+			    case '$':
+				EMIT(NFA_EOF);
+				/* Not yet supported */
+				return FAIL;
+				break;
+
+			    case '#':
+				/* not supported yet */
+				return FAIL;
+				break;
+
+			    case 'V':
+				/* not supported yet */
+				return FAIL;
+				break;
+
+			    case '[':
+				/* \%[abc] not supported yet */
+				return FAIL;
+
+			    case 'd':   /* %d123 decimal */
+			    case 'o':   /* %o123 octal */
+			    case 'x':   /* %xab hex 2 */
+			    case 'u':   /* %uabcd hex 4 */
+			    case 'U':   /* %U1234abcd hex 8 */
+				/* not supported yet */
+				return FAIL;
+
+			    default:
+				/* not supported yet */
+				return FAIL;
+			}
+			break;
 
 collection:
 		case Magic('['):
@@ -632,7 +751,8 @@ collection:
 				EMIT(NFA_NEWL);
 				EMIT(NFA_OR);
 			    }
-			    regparse = endp + 1;
+			    regparse = endp;
+			    nfa_inc(&regparse);
 			    return OK;
 			}
 			/* 
@@ -647,7 +767,7 @@ collection:
 			{
 			    negated = TRUE;
 			    glue = NFA_CONCAT;
-			    regparse ++;
+			    nfa_inc(&regparse);
 			}
 			if (*regparse == '-')
 			{
@@ -655,7 +775,7 @@ collection:
 			    EMIT(startc);
 			    TRY_NEG();
 			    EMIT_GLUE();
-			    regparse ++;
+			    nfa_inc(&regparse);
 			}
 			/* Emit the OR branches for each character in the [] */
 			emit_range = FALSE;
@@ -758,7 +878,7 @@ collection:
 			    {
 				emit_range = TRUE;
 				startc = oldstartc;
-				regparse++;
+				nfa_inc(&regparse);
 				continue;	    /* reading the end of the range */
 			    }
 
@@ -774,7 +894,7 @@ collection:
 				    )
 				)
 			    {
-				regparse++;
+				nfa_inc(&regparse);
 
 				if (*regparse == 'u' || *regparse == 'U')
 				    return FAIL;	/* TODO(RE) multibyte chars not supported yet */
@@ -788,7 +908,7 @@ collection:
 				{
 				    startc = coll_get_char();
 				    got_coll_char = TRUE;
-				    regparse--;
+				    nfa_dec(&regparse);
 				}
 				else
 				{
@@ -806,16 +926,45 @@ collection:
 			    if (emit_range)
 			    {
 				endc = startc; startc = oldstartc;
-				if (startc > endc || startc + 256 < endc)
+				if (startc > endc)
 				    EMSG_RET_FAIL(_(e_invrange));
-				/* Emit the range. "startc" was already emmitted, so skip it. */
-				for (c = startc+1; c <= endc; c++)
+#ifdef FEAT_MBYTE
+				if (has_mbyte && ((*mb_char2len)(startc) > 1 
+						    || (*mb_char2len)(endc) > 1))
 				{
-				    EMIT(c);
-				    TRY_NEG();
-				    EMIT_GLUE();
+				    if (endc > startc + 256)
+					EMSG_RET_FAIL(_(e_invrange));
+				    /* Emit the range. "startc" was already emmitted, so skip it. */
+				    for (c = startc+1; c <= endc; c++)
+				    {
+					EMIT_MBYTE(c, old_regparse);
+					TRY_NEG();
+					EMIT_GLUE();
+				    }
+				    emit_range = FALSE;
 				}
-				emit_range = FALSE;
+				else
+#endif
+				{
+#ifdef EBCDIC			    
+				    int alpha_only = FALSE;
+				    /* for alphabetical range skip the gaps
+				     * 'i'-'j', 'r'-'s', 'I'-'J' and 'R'-'S'. */
+				    if (isalpha(startc) && isalpha(endc))
+					alpha_only = TRUE;
+#endif
+				    /* Emit the range. "startc" was already emmitted, so skip it. */
+				    for (c = startc+1; c <= endc; c++)
+#ifdef EBCDIC
+					if (!alpha_only || isalpha(startc))
+#endif
+					{
+					    EMIT(c);
+					    TRY_NEG();
+					    EMIT_GLUE();
+					}
+				    emit_range = FALSE;
+				}
 			    }
 			    else
 			    /* This char (startc) is not part of a range. Just emit it. */
@@ -834,16 +983,18 @@ collection:
 				TRY_NEG();
 				EMIT_GLUE();
 			    }
-
-			    regparse++;
+			    
+			    nfa_inc(&regparse);
 			}	    /* while (p < endp) */
 
-			if (*(regparse-1) == '-')		/* if last, '-' is just a char */
+			nfa_dec(&regparse);
+			if (*regparse == '-')		/* if last, '-' is just a char */
 			{
 			    EMIT('-');
 			    TRY_NEG();
 			    EMIT_GLUE();
 			}
+			nfa_inc(&regparse);
 
 			if (extra == ADD_NL)		/* \_[] also matches \n */
 			{
@@ -851,8 +1002,10 @@ collection:
 			    TRY_NEG();
 			    EMIT_GLUE();
 			}
-
-			regparse = endp+1;		/* skip the trailing ] */
+			
+			/* skip the trailing ] */
+			regparse = endp;
+			nfa_inc(&regparse);
 			if (negated == TRUE)
 			{
 			    EMIT(NFA_END_NEG_RANGE);	/* Mark end of negated char range */
@@ -871,20 +1024,26 @@ collection:
 		default:
 		{
 #ifdef FEAT_MBYTE
-			/* A multi-byte character is handled as a separate atom if it's
-			 * before a multi and when it's a composing char. */
 	nfa_do_multibyte:
-			if (has_mbyte && (*mb_char2len)(c) > 1
-					 && (enc_utf8 && utf_iscomposing(c)))
+			if (enc_utf8 && utf_iscomposing(c))
 			{
 			    /* TODO(RE) composing char not supported yet */
 			    return FAIL;
 			}
-			/* TODO(RE) composing char not supported yet */
+			/* But normal multibyte chars are ok :-)
+			 * A multi-byte character is always handled as a 
+			 * separate atom, surrounded by NFA_MULTIBYTE and 
+			 * NFA_END_MULTIBYTE */
+			if (has_mbyte && (*mb_char2len)(c) > 1)
+			{
+			    EMIT_MBYTE(c, old_regparse);
+			}
+			else
 #endif
-			c = no_Magic(c);
-			EMIT(c);
-
+			{
+			    c = no_Magic(c);
+			    EMIT(c);
+			}
 			return OK;
 		}
     }
@@ -1176,7 +1335,7 @@ int	    old_regnpar;
     while (ch == Magic('&'))
     {
 	skipchr();
-	EMIT(NFA_MOPEN_INVISIBLE);
+	EMIT(NFA_NOPEN);
 	EMIT(NFA_PREV_ATOM_NO_WIDTH);
 	old_post_ptr = post_ptr;
 	if (nfa_regconcat() == FAIL)
@@ -1235,7 +1394,10 @@ nfa_reg(paren)
     if (paren != REG_NOPAREN && getchr() != Magic(')'))
     {
 	syntax_error = TRUE;
-	EMSG_RET_FAIL("E999: (NFA regexp) Group is not properly terminated ");
+	if (paren == REG_NPAREN)
+	    EMSG_M_RET_FAIL(_("E53: Unmatched %s%%("), reg_magic == MAGIC_ALL);
+	else
+	    EMSG_M_RET_FAIL(_("E54: Unmatched %s("), reg_magic == MAGIC_ALL);
     }
     else if (paren == REG_NOPAREN && peekchr() != NUL)
     {
@@ -1269,7 +1431,6 @@ typedef struct
 
 #ifdef DEBUG
 static char code[50]; 
-static FILE *debugf;
 static void nfa_set_code(int c)
 {
 int addnl = FALSE;
@@ -1290,10 +1451,13 @@ int addnl = FALSE;
 	case NFA_ZEND:	    STRCPY(code, "NFA_ZEND"); break;
 
 	case NFA_PREV_ATOM_NO_WIDTH:	STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
-	case NFA_MOPEN_INVISIBLE:	STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
-	case NFA_MCLOSE_INVISIBLE:	STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
+	case NFA_NOPEN:	STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
+	case NFA_NCLOSE:	STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
 	case NFA_START_INVISIBLE:	STRCPY(code, "NFA_START_INVISIBLE"); break;
 	case NFA_END_INVISIBLE:		STRCPY(code, "NFA_END_INVISIBLE"); break;
+
+	case NFA_MULTIBYTE:	    STRCPY(code, "NFA_MULTIBYTE"); break;
+	case NFA_END_MULTIBYTE:	    STRCPY(code, "NFA_END_MULTIBYTE"); break;
 
 	case NFA_MOPEN + 0: 
 	case NFA_MOPEN + 1: 
@@ -1323,6 +1487,8 @@ int addnl = FALSE;
 	    break;
 	case NFA_EOL:		STRCPY(code, "NFA_EOL "); break;
 	case NFA_BOL:		STRCPY(code, "NFA_BOL "); break;
+	case NFA_EOW:		STRCPY(code, "NFA_EOW "); break;
+	case NFA_BOW:		STRCPY(code, "NFA_BOW "); break;
 	case NFA_STAR:		STRCPY(code, "NFA_STAR "); break;
 	case NFA_PLUS:		STRCPY(code, "NFA_PLUS "); break;
 	case NFA_NOT:		STRCPY(code, "NFA_NOT "); break;
@@ -1386,6 +1552,11 @@ int addnl = FALSE;
     
 }
 
+#ifdef ENABLE_LOG
+
+static FILE *debugf;
+
+/* Print the postfix notation of the current regexp */
 static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
 {
     int *p;
@@ -1413,6 +1584,7 @@ static void nfa_postfix_dump __ARGS((char_u *expr, int retval))
     }
 }
 
+/* Print the NFA starting with a root node "state" */
 static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
 {
     int i;
@@ -1434,6 +1606,7 @@ static void nfa_print_state(FILE *debugf, nfa_state_T *state, int ident)
     nfa_print_state(debugf, state->out1, ident+4);
 }
 
+/* Print the NFA state machine */
 static void nfa_dump(nfa_regprog_T *prog)
 {
     debugf=fopen("LOG.log","a");
@@ -1443,7 +1616,8 @@ static void nfa_dump(nfa_regprog_T *prog)
 	fclose(debugf);
     }
 }
-#endif
+#endif	    /* ENABLE_LOG */
+#endif	    /* DEBUG */
 
 /*
  * Parse r.e. @expr and convert it into postfix form.
@@ -1575,7 +1749,17 @@ append(l1, l2)
     return oldl1;
 }
 
-void st_error (int *postfix, int *end, int *p)
+/*
+ * Stack used for transforming postfix form into NFA.
+ */
+static Frag_T empty;
+/* Forward declarations for inline functions used in post2nfa() */
+static void st_push __ARGS((Frag_T s, Frag_T **p, Frag_T *stack_end));
+static Frag_T st_pop __ARGS((Frag_T **p, Frag_T *stack));
+static void st_error (int *postfix, int *end, int *p);
+
+
+static void st_error (int *postfix, int *end, int *p)
 {
 FILE *df;
 int *p2;
@@ -1607,14 +1791,6 @@ int *p2;
     }	
     EMSG("E999: (NFA) Could not pop the stack !");
 }
-
-/*
- * Stack used for transforming postfix form into NFA.
- */
-static Frag_T empty;
-/* Forward declarations for inline functions used in post2nfa() */
-static void st_push __ARGS((Frag_T s, Frag_T **p, Frag_T *stack_end));
-static Frag_T st_pop __ARGS((Frag_T **p, Frag_T *stack));
 
 /* Push an item onto the stack */
 inline static void st_push(s, p, stack_end)
@@ -1827,7 +2003,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	case NFA_MOPEN + 7:
 	case NFA_MOPEN + 8:
 	case NFA_MOPEN + 9:
-	case NFA_MOPEN_INVISIBLE:
+	case NFA_NOPEN:
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate += 2;
@@ -1836,8 +2012,8 @@ post2nfa(postfix, end, nfa_calc_size)
 
 	    mopen = *p;
 	    mclose = *p + NSUBEXP;
-	    if (*p == NFA_MOPEN_INVISIBLE)
-		mclose = NFA_MCLOSE_INVISIBLE;
+	    if (*p == NFA_NOPEN)
+		mclose = NFA_NCLOSE;
 	   
 	    /* Allow "NFA_MOPEN" as a valid postfix representation for
 	     * the empty regexp "". In this case, the NFA will be
@@ -1872,6 +2048,8 @@ post2nfa(postfix, end, nfa_calc_size)
     
 	case NFA_ZSTART:
 	case NFA_ZEND:
+	case NFA_MULTIBYTE:
+	case NFA_END_MULTIBYTE:
 	default:	/* Operands */
 	    if (nfa_calc_size == TRUE)
 	    {
@@ -1955,12 +2133,16 @@ addstate(l, state, m, off, lid, match)
 	|| (state->c - NFA_MOPEN >=0 && state->c - NFA_MOPEN <=9)
 	|| (state->c == NFA_MATCH)  || (state->c == NFA_BOW) || (state->c == NFA_EOW)
 	|| (state->c == NFA_ANY)    || (state->c == NFA_BOL) || (state->c == NFA_EOL)
+	|| (state->c == NFA_BOF)    || (state->c == NFA_EOF)
 	|| (state->c == NFA_NEWL)   || (state->c == NFA_END_NEG_RANGE)
 	|| (state->c >= NFA_CLASS_ALNUM && state->c <= NFA_CLASS_ESCAPE)	/* [:alpha:] */
 	|| (state->c >= '\300' && state->c <= '\377')				/* equivalence classes */
 	|| (state->c >= NFA_ANY && state->c <= NFA_NUPPER)			/* \a, \d etc */
 	|| (state->c >= NFA_FIRST_NL && state->c <= NFA_LAST_NL)		/* \n + \a, \d etc */
 	|| (state->c == NFA_START_INVISIBLE) || (state->c == NFA_END_INVISIBLE)
+#ifdef FEAT_MBYTE
+	|| (state->c == NFA_MULTIBYTE)
+#endif
 	)
     {	
 	if (state->lastlist == lid)
@@ -2011,8 +2193,13 @@ wrong ! Why wasn't it processed already? \n\n");
 #endif
 	    break;
 
-	case NFA_MOPEN_INVISIBLE:
-	case NFA_MCLOSE_INVISIBLE:
+	case NFA_MULTIBYTE:
+	    /* nfa_regmatch() will take care of the bytes of this multibyte char. 
+	     * Here we don't have to do anything. */
+	    break;
+
+	case NFA_NOPEN:
+	case NFA_NCLOSE:
 	    addstate(l, state->out, m, off, lid, match);
 	    break;
 
@@ -2275,12 +2462,12 @@ nfa_regmatch(start, submatch, m)
     thread_T	*t;
     char_u	*cc, *old_reginput = NULL;
     char_u	*old_regline = NULL;
-    nfa_state_T	*matchstate = NULL;
+    nfa_state_T	*sta;
     List	list[3];
     int		listid;
     List	*thislist, *nextlist, *neglist;
     int		*listids = NULL;
-    int		j = 0;
+    int		j = 0, len = 0;
 
     c = -1;
     listid = 1;
@@ -2394,7 +2581,6 @@ again:
 	    {
 	    case NFA_MATCH:
 		match = TRUE;
-		matchstate = t->state;
 		*submatch = t->sub;
 #ifdef ENABLE_LOG
     for (j = 0; j < 4; j++)
@@ -2411,7 +2597,7 @@ again:
 	     * surround a zero-width group, used with "\@=" and "\&". 
 	     * If we got here, it means that the current "invisible" group finished 
 	     * successfully, so return control to the parent nfa_regmatch(). 
-	     * Submatches are automatically remembered. */
+	     * Submatches are stored in *m, and used in the parent call. */
 	    case NFA_END_INVISIBLE:
 		if (start->c == NFA_MOPEN + 0)
 		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
@@ -2560,6 +2746,33 @@ again:
 		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
 		break;
 	    }
+
+	    case NFA_MULTIBYTE:
+		sta = t->state->out;
+		len = 1;
+		while (sta->c != NFA_END_MULTIBYTE && len <= n)
+		{
+		    if (reginput[len-1] != sta->c)
+			break;
+		    len++;
+		    sta = sta->out;
+		}
+		
+		/* if input char length doesn't match regexp char length */
+		if (len -1 < n || sta->c != NFA_END_MULTIBYTE)
+		    break;
+		addstate(nextlist, sta->out, &t->sub, 1, listid, &match);
+		break;
+
+	    case NFA_BOF:
+		/* TODO(RE) Handle Beginning of file */
+		return FAIL;
+		break;
+
+	    case NFA_EOF:
+		/* TODO(RE) Handle End of File */
+		return FAIL;
+		break;
 
 	    case NFA_NEWL:
 		if (!reg_line_lbr && REG_MULTI
@@ -2778,7 +2991,7 @@ again:
 
 nextchar:
 #ifdef FEAT_MBYTE
-	/* TODO(RE) Check for following composing character. */
+	/* TODO(RE) Check for a composing character. */
 #endif
 	    reginput += n;
     } while (c || reginput_updated);
@@ -2787,22 +3000,6 @@ nextchar:
     if (f != stderr)
 	fclose(f);
 #endif
-
-    /* if match state has a successor S, then S must match at the
-     * start position in the input text too (it is probably a concat)
-     */
-    if (match == TRUE && matchstate != NULL && matchstate->out != NULL)
-    {	
-	if (REG_MULTI)
-	{
-	    for (i = reglnum ; i < submatch->startpos[0].lnum; i++)
-		reg_nextline();
-	    reginput = old_reginput + submatch->startpos[0].col;
-	}
-	else
-	    reginput = submatch->start[0];
-	match = nfa_regmatch(matchstate->out, submatch);
-    }
 
 theend:
     /* Free memory */
