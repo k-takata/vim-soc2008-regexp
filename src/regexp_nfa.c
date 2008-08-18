@@ -58,7 +58,7 @@ static void nfa_set_neg_listids __ARGS((nfa_state_T *start));
 static inline void nfa_inc __ARGS((char_u **p));
 static inline void nfa_dec __ARGS((char_u **p));
 
-/* helper fuctions used when doing re2post() parsing */
+/* helper fuctions used when doing re2post() ... regatom() parsing */
 #define EMIT(c)	do {				\
 		    if (post_ptr >= post_end)	\
 			return FAIL;		\
@@ -683,6 +683,22 @@ static char_u	buf[30];
 				EMIT(NFA_NOPEN);
 				break;
 
+			    case 'd':   /* %d123 decimal */
+			    case 'o':   /* %o123 octal */
+			    case 'x':   /* %xab hex 2 */
+			    case 'u':   /* %uabcd hex 4 */
+			    case 'U':   /* %U1234abcd hex 8 */
+				c = coll_get_char();
+#ifdef FEAT_MBYTE
+				if ((*mb_char2len)(c) > 1)
+				{
+				    EMIT_MBYTE(c);
+				}
+				else
+#endif
+				    EMIT(c);
+				break;
+
 			    /* Catch \%^ and \%$ regardless of where they appear in the
 			     * pattern -- regardless of whether or not it makes sense. */
 			    case '^':
@@ -709,14 +725,6 @@ static char_u	buf[30];
 
 			    case '[':
 				/* \%[abc] not supported yet */
-				return FAIL;
-
-			    case 'd':   /* %d123 decimal */
-			    case 'o':   /* %o123 octal */
-			    case 'x':   /* %xab hex 2 */
-			    case 'u':   /* %uabcd hex 4 */
-			    case 'U':   /* %U1234abcd hex 8 */
-				/* not supported yet */
 				return FAIL;
 
 			    default:
@@ -1606,9 +1614,9 @@ static FILE *debugf;
 
 /* Print the postfix notation of the current regexp */
     static void 
-nfa_postfix_dump(char_u *expr, int retval)
-    char_u *expr;
-    int retval;
+nfa_postfix_dump(expr, retval)
+    char_u  *expr;
+    int	    retval;
 {
     int *p;
     FILE *f;
