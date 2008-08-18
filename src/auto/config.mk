@@ -19,7 +19,7 @@ VIEWNAME	= view
 
 CC		= gcc
 DEFS		= -DHAVE_CONFIG_H
-CFLAGS		= -g -Wall -Wmissing-prototypes -DDEBUG
+CFLAGS		= -O2 -fno-strength-reduce -Wall
 CPPFLAGS	= 
 srcdir		= .
 
@@ -90,7 +90,7 @@ STRIP		= strip
 
 EXEEXT		= 
 
-COMPILEDBY	= John Doe <JohnDoe@yahoo.com>
+COMPILEDBY	= 
 
 INSTALLVIMDIFF	= installvimdiff
 INSTALLGVIMDIFF	= installgvimdiff

@@ -47,7 +47,7 @@
 #ifdef DEBUG
 /* show/save debugging data when BT engine is used */
 /*#define BT_REGEXP_DUMP*/
-/* save the data to a file instead of displaying it */
+/* save the debugging data to a file instead of displaying it */
 /*#define BT_REGEXP_LOG*/
 #endif
 
@@ -241,7 +241,7 @@
 #define RE_MARK		207	/* mark cmp  Match mark position */
 #define RE_VISUAL	208	/*	Match Visual area */
 
-/* For NFA. TODO(RE) is there a way of sharing definitions above? */
+/* For NFA regexp engine */
 enum
 {
     NFA_SPLIT = -1024,
@@ -7447,6 +7447,9 @@ static regengine_T bt_regengine =
     bt_regexec_nl,
 #endif
     bt_regexec_multi
+#ifdef DEBUG
+    ,(char_u *)""
+#endif
 };
 
 
@@ -7461,6 +7464,9 @@ static struct regengine nfa_regengine =
     nfa_regexec_nl,
 #endif
     nfa_regexec_multi
+#ifdef DEBUG
+    ,(char_u *)""
+#endif
 };
 
 /* Which regexp engine to use? Needed for vim_regcomp() */

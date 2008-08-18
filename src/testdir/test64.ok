@@ -224,5 +224,11 @@ OK - [[:alpha:]]\{-2,6}
 OK - [^[=a=]]\+
 OK - 
 OK - \v(())
+OK - \v%(ab(xyz)c)
+OK - \v(test|)empty
+OK - \v(a|aa)(a|aa)
 OK - [[:alpha:][=a=]]\+
 OK - [[=a=]]\+
+OK - [^ม ]\+
+OK -  [^ ]\+
+OK - [ม[:alpha:][=a=]]\+

@@ -287,10 +287,17 @@ STARTTEST
 :call add(tl, ['[^[=a=]]\+', 'ddaãâbcd', 'dd'])
 :call add(tl, ['', 'abcd', ''])
 :call add(tl, ['\v(())', 'any possible text', ''])
+:call add(tl, ['\v%(ab(xyz)c)', '   abxyzc ', 'abxyzc', 'xyz'])
+:call add(tl, ['\v(test|)empty', 'tesempty', 'empty', ''])
+:call add(tl, ['\v(a|aa)(a|aa)', 'aaa', 'aa', 'a', 'a'])
 
-:"""" Multi-byte character tests
-:call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])	" will fail unless compiled with multi-byte
-:call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])							" equivalence classes, and will fail unless compiled with multi-byte
+:"""" Multi-byte character tests. These will fail unless vim is compiled 
+:"""" with Multibyte (FEAT_MBYTE) or BIG/HUGE features.
+:call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
+:call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])								" equivalence classes
+:call add(tl, ['[^ม ]\+', 'มม oijasoifjos ifjoisj f osij j มมมมม abcd', 'oijasoifjos'])
+:call add(tl, [' [^ ]\+', 'start มabcdม ', ' มabcdม'])
+:call add(tl, ['[ม[:alpha:][=a=]]\+', '879 aiaãมâมaiuvna ', 'aiaãมâมaiuvna'])
 
 :"""" Debugging tests
 
