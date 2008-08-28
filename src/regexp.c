@@ -46,10 +46,13 @@
 
 #ifdef DEBUG
 /* show/save debugging data when BT engine is used */
-/*#define BT_REGEXP_DUMP*/
+#define BT_REGEXP_DUMP
 /* save the debugging data to a file instead of displaying it */
-/*#define BT_REGEXP_LOG*/
+#define BT_REGEXP_LOG
 #endif
+
+/* Comment this out to rely only on the backtracking engine */
+/*#define ENABLE_NFA_ENGINE	*/
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from
@@ -272,6 +275,8 @@ enum
     NFA_END_INVISIBLE,
     NFA_MULTIBYTE,		    /* Next nodes in NFA are part of the same multibyte char */
     NFA_END_MULTIBYTE,		    /* End of multibyte char in the NFA */
+    NFA_COMPOSING,		    /* Next nodes in NFA are part of the composing multibyte char */
+    NFA_END_COMPOSING,		    /* End of a composing char in the NFA */
 
     /* The following are used only in the postfix form, not in the NFA */
     NFA_PREV_ATOM_NO_WIDTH,	    /* Used for \@= */
@@ -7470,7 +7475,7 @@ static struct regengine nfa_regengine =
 };
 
 /* Which regexp engine to use? Needed for vim_regcomp() */
-static int regexp_engine;
+static int regexp_engine = 0;
 #define	    AUTOMATIC_ENGINE	0
 #define	    BACKTRACKING_ENGINE	1
 #define	    NFA_ENGINE		2
@@ -7516,9 +7521,11 @@ vim_regcomp(expr, re_flags)
     nfa_regengine.expr = expr;
 #endif
     /* First try the NFA engine	*/
+#ifdef ENABLE_NFA_ENGINE
     if (regexp_engine != BACKTRACKING_ENGINE)
         prog = nfa_regengine.regcomp(expr, re_flags);
     else
+#endif
 	prog = bt_regengine.regcomp(expr, re_flags);
 
     if (prog == NULL)	    /* error compiling regexp with initial engine */

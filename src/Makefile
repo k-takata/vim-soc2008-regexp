@@ -558,9 +558,9 @@ LINT_OPTIONS = -beprxzF
 # For unknown reasons adding "-lc" fixes a linking problem with GCC.  That's
 # probably a bug in the "-pg" implementation.
 # Need to recompile everything after changing this: "make clean" "make".
-#PROFILE_CFLAGS = -pg -g -DWE_ARE_PROFILING
-#PROFILE_LIBS = -pg
-#PROFILE_LIBS = -pg -lc
+PROFILE_CFLAGS = -pg -g -DWE_ARE_PROFILING
+PROFILE_LIBS = -pg
+PROFILE_LIBS = -pg -lc
 
 # MEMORY LEAK DETECTION
 # Requires installing the ccmalloc library.
