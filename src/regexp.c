@@ -52,7 +52,7 @@
 #endif
 
 /* Comment this out to rely only on the backtracking engine */
-/*#define ENABLE_NFA_ENGINE	*/
+#define ENABLE_NFA_ENGINE
 
 /*
  * The "internal use only" fields in regexp.h are present to pass info from

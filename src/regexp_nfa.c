@@ -486,17 +486,10 @@ static char_u	buf[30];
     c = getchr();
     /* length of current char, without composing chars */
     clen = (*mb_char2len)(c);
-    /* NFA engine doesn't yet support mbyte composing chars => 
-     * bug when search mbyte chars. Fail and revert to old engine. 
-     * TODO(RE) Implement composing chars 
-     * But normal multibyte characters are ok. */
 #ifdef FEAT_MBYTE
     if (has_mbyte && clen>1)
     {
-//	if (enc_utf8 && utf_iscomposing(c))
-//	    return FAIL;
-//	else
-	    goto nfa_do_multibyte;
+	goto nfa_do_multibyte;
     }
 #endif
     switch (c)
@@ -1986,15 +1979,14 @@ post2nfa(postfix, end, nfa_calc_size)
 	case NFA_NOT:		/* Negation of a character */
 	    if (nfa_calc_size == TRUE)
 	    {
-		nstate += 1;
+		nstate += 0;
 		break;
 	    }
 	    e1 = POP();
-	    s = new_state(NFA_NOT, NULL, NULL);
-	    if (s == NULL)
-		return NULL;
-	    patch(e1.out, s);
-	    PUSH(frag(e1.start, list1(&s->out)));
+	    e1.start->negated = TRUE;
+	    if (e1.start->c == NFA_MULTIBYTE || e1.start->c == NFA_COMPOSING)
+		e1.start->out1->negated = TRUE;
+	    PUSH(e1);
 	    break;
 
 	case NFA_OR:		/* Alternation */
@@ -2251,7 +2243,6 @@ addstate(l, state, m, off, lid, match)
 {
     regsub_T		save;
     int			subidx = 0;
-    thread_T		*t;
 
     if (l == NULL || state == NULL)
 	return;
@@ -2287,7 +2278,6 @@ addstate(l, state, m, off, lid, match)
 		state->lastthread = &l->t[l->n++];
 		state->lastthread->state = state;
 		state->lastthread->sub = *m;
-		t = state->lastthread;
 	    }
     }
 
@@ -2311,25 +2301,25 @@ addstate(l, state, m, off, lid, match)
 	    addstate(l, state->out, m, off, lid, match);
 	    break;
 
-	case NFA_END_NEG_RANGE:
+//	case NFA_END_NEG_RANGE:
 	    /* Nothing to handle here. nfa_regmatch() will take care of it */
-	    break;
+//	    break;
 
-	case NFA_NOT:
-	    EMSG("E999: (NFA regexp internal error) Should not process NOT node !");
+//	case NFA_NOT:
+//	    EMSG("E999: (NFA regexp internal error) Should not process NOT node !");
 #ifdef ENABLE_LOG
-	fprintf(f, "\n\n>>> E999: Added state NFA_NOT to a list ... Something went \
+//	fprintf(f, "\n\n>>> E999: Added state NFA_NOT to a list ... Something went \
 wrong ! Why wasn't it processed already? \n\n");
 #endif
-	    break;
+//	    break;
 
-	case NFA_COMPOSING:
+//	case NFA_COMPOSING:
 	    /* nfa_regmatch() will match all the bytes of this composing char. */
-	    break;
+//	    break;
 
-	case NFA_MULTIBYTE:
+//	case NFA_MULTIBYTE:
 	    /* nfa_regmatch() will match all the bytes of this multibyte char. */
-	    break;
+//	    break;
 
 	case NFA_END_MULTIBYTE:
 	    /* Successfully matched this mbyte char */
@@ -2344,8 +2334,8 @@ wrong ! Why wasn't it processed already? \n\n");
 	/* If this state is reached, then a recursive call of nfa_regmatch() 
 	 * succeeded. the next call saves the found submatches in the 
 	 * first state after the "invisible" branch. */
-	case NFA_END_INVISIBLE:
-	    break;
+//	case NFA_END_INVISIBLE:
+//	    break;
 
 	case NFA_MOPEN + 0:
 	case NFA_MOPEN + 1:
@@ -2598,14 +2588,14 @@ nfa_regmatch(start, submatch, m)
     regsub_T		*m;
 {
     int		c, n, i = 0, result, size = 0;
-    int		match = FALSE, negate = FALSE;
+    int		match = FALSE;
     int		flag = 0, old_reglnum = -1;
     int		reginput_updated = FALSE;
     thread_T	*t;
     char_u	*cc, *old_reginput = NULL;
     char_u	*old_regline = NULL;
     nfa_state_T	*sta, *end;
-    List	list[3], *listtbl[2][2];
+    List	list[3], *listtbl[2][2], *ll;
     int		listid;
     int		endnode = 0;
     List	*thislist, *nextlist, *neglist;
@@ -2672,9 +2662,10 @@ displaying on stderr ... ");
     listtbl[0][1] = neglist;
     listtbl[1][0] = nextlist;
     listtbl[1][1] = NULL;
-#define	ADD_POS_NEG_STATE(succ)					    \
-    addstate(listtbl[result ? 1 : 0][negate], (negate ? succ->out : succ), \
-	&t->sub, n, listid+1, &match);
+#define	ADD_POS_NEG_STATE(node)						    \
+    ll = listtbl[result ? 1 : 0][node->negated];				    \
+    if (ll != NULL)							    \
+	addstate(ll, node->out , &t->sub, n, listid+1, &match);
 
 
     /* run for each character */
@@ -2728,8 +2719,6 @@ again:
 	    }
 	    else
 		t = &thislist->t[i];
-	    /* Negation ? */
-	    negate = (t->state->out && t->state->out->c == NFA_NOT); 
 
 #ifdef DEBUG
 	    nfa_set_code(t->state->c);
@@ -2945,10 +2934,10 @@ displaying on stderr ... ");
 		if (len -1 < n || sta->c != endnode)
 		    result = OK - 1;
 		end = t->state->out1;	    /* NFA_END_MULTIBYTE or NFA_END_COMPOSING */
-		/* Check for match or negated match */
-		if (end && end->out && end->out->c == NFA_NOT)
-		    negate = TRUE;
-		ADD_POS_NEG_STATE(end->out);
+		/* If \Z was present, then ignore composing characters */
+		if (regflags & RF_ICOMBINE)
+		    result = 1 ^ sta->negated;
+		ADD_POS_NEG_STATE(end);
 		break;
 
 	    case NFA_NEWL:
@@ -2981,7 +2970,7 @@ displaying on stderr ... ");
 	    case NFA_CLASS_BACKSPACE:
 	    case NFA_CLASS_ESCAPE:
 		result = check_char_class(t->state->c, c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_END_NEG_RANGE:
@@ -3000,139 +2989,139 @@ displaying on stderr ... ");
 /* Character classes like \a for alpha, \d for digit etc */
 	    case NFA_IDENT:	/*  \i	*/
 		result = vim_isIDc(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_SIDENT:	/*  \I	*/
 		result = !VIM_ISDIGIT(c) && vim_isIDc(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_KWORD:	/*  \k	*/
 		result = vim_iswordp(cc);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_SKWORD:	/*  \K	*/
 		result = !VIM_ISDIGIT(c) && vim_iswordp(cc);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_FNAME:	/*  \f	*/
 		result = vim_isfilec(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_SFNAME:	/*  \F	*/
 		result = !VIM_ISDIGIT(c) && vim_isfilec(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_PRINT:	/*  \p	*/
 		result = ptr2cells(cc) == 1;
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_SPRINT:	/*  \P	*/
 		result = !VIM_ISDIGIT(c) && ptr2cells(cc) == 1;
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_WHITE:	/*  \s	*/
 		result = vim_iswhite(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NWHITE:	/*  \S	*/
 		result = c != NUL && !vim_iswhite(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_DIGIT:	/*  \d	*/
 		result = ri_digit(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NDIGIT:	/*  \D	*/
 		result = c != NUL && !ri_digit(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_HEX:	/*  \x	*/
 		result = ri_hex(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NHEX:	/*  \X	*/
 		result = c != NUL && !ri_hex(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_OCTAL:	/*  \o	*/
 		result = ri_octal(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NOCTAL:	/*  \O	*/
 		result = c != NUL && !ri_octal(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_WORD:	/*  \w	*/
 		result = ri_word(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NWORD:	/*  \W	*/
 		result = c != NUL && !ri_word(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_HEAD:	/*  \h	*/
 		result = ri_head(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NHEAD:	/*  \H	*/
 		result = c != NUL && !ri_head(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_ALPHA:	/*  \a	*/
 		result = ri_alpha(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NALPHA:	/*  \A	*/
 		result = c != NUL && !ri_alpha(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_LOWER:	/*  \l	*/
 		result = ri_lower(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NLOWER:	/*  \L	*/
 		result = c != NUL && !ri_lower(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_UPPER:	/*  \u	*/
 		result = ri_upper(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    case NFA_NUPPER:	/* \U	*/
 		result = c != NUL && !ri_upper(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 
 	    default:	/* regular character */
 		result = (no_Magic(t->state->c) == c);
 		if (!result)
 		    result = ireg_ic == TRUE && MB_TOLOWER(t->state->c) == MB_TOLOWER(c);
-		ADD_POS_NEG_STATE(t->state->out);
+		ADD_POS_NEG_STATE(t->state);
 		break;
 	    }
 
