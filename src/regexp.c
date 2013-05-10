@@ -6171,7 +6171,7 @@ regdump(pattern, r)
     FILE    *f;
 
 #ifdef BT_REGEXP_LOG
-    f = fopen("bt_regexp_log.log","a");
+    f = fopen("bt_regexp_log.log", "a");
 #else
     f = stdout;
 #endif
@@ -7501,13 +7501,15 @@ vim_regcomp(expr, re_flags)
 	if (STRNCMP(expr, "\\%#=", 4) == 0)
 	{
 	    int newengine = expr[4] - '0';
-	    if (newengine == AUTOMATIC_ENGINE || newengine == BACKTRACKING_ENGINE
+	    if (newengine == AUTOMATIC_ENGINE
+		|| newengine == BACKTRACKING_ENGINE
 		|| newengine == NFA_ENGINE)
 	    {
 		regexp_engine = expr[4] - '0';
 		expr += 5;
 		regparse += 5;
-		EMSG3("New regexp mode selected (%d): %s", regexp_engine, regname[newengine]);
+		EMSG3("New regexp mode selected (%d): %s", regexp_engine,
+							regname[newengine]);
 	    }
 	    else
 	    {
@@ -7531,17 +7533,17 @@ vim_regcomp(expr, re_flags)
     if (prog == NULL)	    /* error compiling regexp with initial engine */
     {
 #ifdef DEBUG
-	if (regexp_engine != BACKTRACKING_ENGINE)	    /* debugging log for NFA */
+	if (regexp_engine != BACKTRACKING_ENGINE)   /* debugging log for NFA */
 	{
 	    FILE *f;
-	    f=fopen("debug.log","a");
+	    f = fopen("debug.log", "a");
 	    if (f)
 	    {
-		    if (!syntax_error)
-			fprintf(f,"NFA engine could not handle \"%s\"\n", expr);
-		    else
-			fprintf(f,"Syntax error in \"%s\"\n", expr);
-		    fclose(f);
+		if (!syntax_error)
+		    fprintf(f, "NFA engine could not handle \"%s\"\n", expr);
+		else
+		    fprintf(f, "Syntax error in \"%s\"\n", expr);
+		fclose(f);
 	    }
 	    else
 		EMSG("(NFA) Could not open \"debug.log\" to write !!!");
@@ -7552,7 +7554,8 @@ vim_regcomp(expr, re_flags)
 	}
 #endif
 	/* If NFA engine failed, then revert to the backtracking engine.
-	 * Except when there was a syntax error, which was properly handled by NFA engine */
+	 * Except when there was a syntax error, which was properly handled by
+	 * NFA engine */
 	if (regexp_engine == AUTOMATIC_ENGINE)
 	    if (!syntax_error)
 		prog = bt_regengine.regcomp(expr, re_flags);
@@ -7610,4 +7613,3 @@ vim_regexec_multi(rmp, win, buf, lnum, col, tm)
 {
     return rmp->regprog->engine->regexec_multi(rmp, win, buf, lnum, col, tm);
 }
-

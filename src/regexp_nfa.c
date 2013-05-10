@@ -494,263 +494,264 @@ static char_u	buf[30];
 #endif
     switch (c)
     {
-	  case Magic('^'):
-		  EMIT(NFA_BOL);
-		  break;
+	case Magic('^'):
+	    EMIT(NFA_BOL);
+	    break;
 
-	  case Magic('$'):
-		  EMIT(NFA_EOL);
+	case Magic('$'):
+	    EMIT(NFA_EOL);
 #if defined(FEAT_SYN_HL) || defined(PROTO)
-		  had_eol = TRUE;
+	    had_eol = TRUE;
 #endif
-		  break;
+	    break;
 
-	  case Magic('<'):
-		  EMIT(NFA_BOW);
-		  break;
+	case Magic('<'):
+	    EMIT(NFA_BOW);
+	    break;
 
-	  case Magic('>'):
-		  EMIT(NFA_EOW);
-		  break;
+	case Magic('>'):
+	    EMIT(NFA_EOW);
+	    break;
 
-	  case Magic('_'):
-		  c = no_Magic(getchr());
-		  if (c == '^')	/* "\_^" is start-of-line */
-		  {
-		      EMIT(NFA_BOL);
-		      break;
-		  }
-		  if (c == '$')	/* "\_$" is end-of-line */
-		  {
-		      EMIT(NFA_EOL);
+	case Magic('_'):
+	    c = no_Magic(getchr());
+	    if (c == '^')	/* "\_^" is start-of-line */
+	    {
+		EMIT(NFA_BOL);
+		break;
+	    }
+	    if (c == '$')	/* "\_$" is end-of-line */
+	    {
+		EMIT(NFA_EOL);
 #if defined(FEAT_SYN_HL) || defined(PROTO)
-		      had_eol = TRUE;
+		had_eol = TRUE;
 #endif
-		      break;
-		  }
+		break;
+	    }
 
-		  extra = ADD_NL;
+	    extra = ADD_NL;
 
-		  /* "\_[" is collection plus newline */
-		  if (c == '[')
-		    goto collection;
+	    /* "\_[" is collection plus newline */
+	    if (c == '[')
+		goto collection;
 
-		/* "\_x" is character class plus newline */
-		/*FALLTHROUGH*/
+	/* "\_x" is character class plus newline */
+	/*FALLTHROUGH*/
 
-		/*
-		 * Character classes.
-		 */
-		case Magic('.'):
-		case Magic('i'):
-		case Magic('I'):
-		case Magic('k'):
-		case Magic('K'):
-		case Magic('f'):
-		case Magic('F'):
-		case Magic('p'):
-		case Magic('P'):
-		case Magic('s'):
-		case Magic('S'):
-		case Magic('d'):
-		case Magic('D'):
-		case Magic('x'):
-		case Magic('X'):
-		case Magic('o'):
-		case Magic('O'):
-		case Magic('w'):
-		case Magic('W'):
-		case Magic('h'):
-		case Magic('H'):
-		case Magic('a'):
-		case Magic('A'):
-		case Magic('l'):
-		case Magic('L'):
-		case Magic('u'):
-		case Magic('U'):
-			p = vim_strchr(classchars, no_Magic(c));
-			if (p == NULL)
-			{
-			    return FAIL;	    /* runtime error */
-			}
+	/*
+	 * Character classes.
+	 */
+	case Magic('.'):
+	case Magic('i'):
+	case Magic('I'):
+	case Magic('k'):
+	case Magic('K'):
+	case Magic('f'):
+	case Magic('F'):
+	case Magic('p'):
+	case Magic('P'):
+	case Magic('s'):
+	case Magic('S'):
+	case Magic('d'):
+	case Magic('D'):
+	case Magic('x'):
+	case Magic('X'):
+	case Magic('o'):
+	case Magic('O'):
+	case Magic('w'):
+	case Magic('W'):
+	case Magic('h'):
+	case Magic('H'):
+	case Magic('a'):
+	case Magic('A'):
+	case Magic('l'):
+	case Magic('L'):
+	case Magic('u'):
+	case Magic('U'):
+	    p = vim_strchr(classchars, no_Magic(c));
+	    if (p == NULL)
+	    {
+		return FAIL;	    /* runtime error */
+	    }
 #ifdef FEAT_MBYTE
-			/* When '.' is followed by a composing char ignore the dot, so that
-			 * the composing char is matched here. */
-			if (enc_utf8 && c == Magic('.') && utf_iscomposing(peekchr()))
-			{
-			    c = getchr();
-			    goto nfa_do_multibyte;
-			}
+	    /* When '.' is followed by a composing char ignore the dot, so that
+	     * the composing char is matched here. */
+	    if (enc_utf8 && c == Magic('.') && utf_iscomposing(peekchr()))
+	    {
+		c = getchr();
+		goto nfa_do_multibyte;
+	    }
 #endif
-			EMIT(nfa_classcodes[p - classchars]);
-			if (extra == ADD_NL)
-			{
-			    EMIT(NFA_NEWL);
-			    EMIT(NFA_OR);
-			    regflags |= RF_HASNL;
-			}
-			break;
+	    EMIT(nfa_classcodes[p - classchars]);
+	    if (extra == ADD_NL)
+	    {
+		EMIT(NFA_NEWL);
+		EMIT(NFA_OR);
+		regflags |= RF_HASNL;
+	    }
+	    break;
 
-		case Magic('n'):
-			if (reg_string)
-			    /* In a string "\n" matches a newline character. */
-			    EMIT(NL);
-			else
-			{
-			    /* In buffer text "\n" matches the end of a line. */
-			    EMIT(NFA_NEWL);
-			    regflags |= RF_HASNL;
-			}
-			break;
+	case Magic('n'):
+	    if (reg_string)
+	    /* In a string "\n" matches a newline character. */
+	    EMIT(NL);
+	    else
+	    {
+		/* In buffer text "\n" matches the end of a line. */
+		EMIT(NFA_NEWL);
+		regflags |= RF_HASNL;
+	    }
+	    break;
 
-		case Magic('('):
-			if (nfa_reg(REG_PAREN) == FAIL)
-			    return FAIL;	    /* cascaded error */
-			break;
+	case Magic('('):
+	    if (nfa_reg(REG_PAREN) == FAIL)
+	    return FAIL;	    /* cascaded error */
+	    break;
 
-		case NUL:
-			syntax_error = TRUE;
-			EMSG_RET_FAIL("E999: (NFA) Regexp end encountered prematurely ");
+	case NUL:
+	    syntax_error = TRUE;
+	    EMSG_RET_FAIL("E999: (NFA) Regexp end encountered prematurely ");
 
-		case Magic('|'):
-		case Magic('&'):
-		case Magic(')'):
-			syntax_error = TRUE;
-			EMSG2("E999: (NFA regexp) Misplaced %c ", no_Magic(c));
+	case Magic('|'):
+	case Magic('&'):
+	case Magic(')'):
+	    syntax_error = TRUE;
+	    EMSG2("E999: (NFA regexp) Misplaced %c ", no_Magic(c));
+	    return FAIL;
+
+	case Magic('='):
+	case Magic('?'):
+	case Magic('+'):
+	case Magic('@'):
+	case Magic('*'):
+	case Magic('{'):
+	    /* these should follow an atom, not form an atom */
+	    syntax_error = TRUE;
+	    EMSG2("E999: (NFA regexp) Misplaced %c", no_Magic(c));
+	    return FAIL;
+
+	case Magic('~'):		/* previous substitute pattern */
+	    /* Not supported yet */
+	    return FAIL;
+
+	case Magic('1'):
+	case Magic('2'):
+	case Magic('3'):
+	case Magic('4'):
+	case Magic('5'):
+	case Magic('6'):
+	case Magic('7'):
+	case Magic('8'):
+	case Magic('9'):
+	    /* not supported yet */
+	    return FAIL;
+
+	case Magic('z'):
+	    c = no_Magic(getchr());
+	    switch (c)
+	    {
+		case 's':
+		    EMIT(NFA_ZSTART);
+		    break;
+		case 'e':
+		    EMIT(NFA_ZEND);
+		    nfa_has_zend = TRUE;
+		    break;
+		case 1:
+		case 2:
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+		case 7:
+		case 8:
+		case 9:
+		case '(':
+		    /* \z1...\z9 and \z( not yet supported */
+		    return FAIL;
+		default:
+		    syntax_error = TRUE;
+		    EMSG2("E999: (NFA) Unknown operator '\\z%c'", no_Magic(c));
+		    return FAIL;
+	    }
+	    break;
+
+	case Magic('%'):
+	    c = no_Magic(getchr());
+	    switch (c)
+	    {
+		/* () without a back reference */
+		case '(':
+		    if (nfa_reg(REG_NPAREN) == FAIL)
 			return FAIL;
-
-		case Magic('='):
-		case Magic('?'):
-		case Magic('+'):
-		case Magic('@'):
-		case Magic('*'):
-		case Magic('{'):
-			/* these should follow an atom, not form an atom */
-			syntax_error = TRUE;
-			EMSG2("E999: (NFA regexp) Misplaced %c", no_Magic(c));
-			return FAIL;
-
-		case Magic('~'):		/* previous substitute pattern */
-			/* Not supported yet */
-			return FAIL;
-
-		case Magic('1'):
-		case Magic('2'):
-		case Magic('3'):
-		case Magic('4'):
-		case Magic('5'):
-		case Magic('6'):
-		case Magic('7'):
-		case Magic('8'):
-		case Magic('9'):
-		      /* not supported yet */
-		      return FAIL;
-
-		case Magic('z'):
-		    c = no_Magic(getchr());
-		    switch (c)
-		    {
-			case 's':
-			    EMIT(NFA_ZSTART);
-			    break;
-			case 'e':
-			    EMIT(NFA_ZEND);
-			    nfa_has_zend = TRUE;
-			    break;
-			case 1:
-			case 2:
-			case 3:
-			case 4:
-			case 5:
-			case 6:
-			case 7:
-			case 8:
-			case 9:
-			case '(':
-			     /* \z1...\z9 and \z( not yet supported */
-			    return FAIL;
-			default:
-			    syntax_error = TRUE;
-			    EMSG2("E999: (NFA) Unknown operator '\\z%c'", no_Magic(c));
-			    return FAIL;
-		    }
+		    EMIT(NFA_NOPEN);
 		    break;
 
-		case Magic('%'):
-			c = no_Magic(getchr());
-			switch (c)
-			{
-			    /* () without a back reference */
-			    case '(':
-				if (nfa_reg(REG_NPAREN) == FAIL)
-				    return FAIL;
-				EMIT(NFA_NOPEN);
-				break;
+		case 'd':   /* %d123 decimal */
+		case 'o':   /* %o123 octal */
+		case 'x':   /* %xab hex 2 */
+		case 'u':   /* %uabcd hex 4 */
+		case 'U':   /* %U1234abcd hex 8 */
+		    /* Not yet supported */
+		    return FAIL;
 
-			    case 'd':   /* %d123 decimal */
-			    case 'o':   /* %o123 octal */
-			    case 'x':   /* %xab hex 2 */
-			    case 'u':   /* %uabcd hex 4 */
-			    case 'U':   /* %U1234abcd hex 8 */
-				/* Not yet supported */
-				return FAIL;
-
-				c = coll_get_char();
+		    c = coll_get_char();
 #ifdef FEAT_MBYTE
-				if ((*mb_char2len)(c) > 1)
-				{
-				    EMIT_MBYTE(c);
-				}
-				else
+		    if ((*mb_char2len)(c) > 1)
+		    {
+			EMIT_MBYTE(c);
+		    }
+		    else
 #endif
-				    EMIT(c);
-				break;
+			EMIT(c);
+		    break;
 
-			    /* Catch \%^ and \%$ regardless of where they appear in the
-			     * pattern -- regardless of whether or not it makes sense. */
-			    case '^':
-				EMIT(NFA_BOF);
-				/* Not yet supported */
-				return FAIL;
-				break;
+		/* Catch \%^ and \%$ regardless of where they appear in the
+		 * pattern -- regardless of whether or not it makes sense. */
+		case '^':
+		    EMIT(NFA_BOF);
+		    /* Not yet supported */
+		    return FAIL;
+		    break;
 
-			    case '$':
-				EMIT(NFA_EOF);
-				/* Not yet supported */
-				return FAIL;
-				break;
+		case '$':
+		    EMIT(NFA_EOF);
+		    /* Not yet supported */
+		    return FAIL;
+		    break;
 
-			    case '#':
-				/* not supported yet */
-				return FAIL;
-				break;
+		case '#':
+		    /* not supported yet */
+		    return FAIL;
+		    break;
 
-			    case 'V':
-				/* not supported yet */
-				return FAIL;
-				break;
+		case 'V':
+		    /* not supported yet */
+		    return FAIL;
+		    break;
 
-			    case '[':
-				/* \%[abc] not supported yet */
-				return FAIL;
+		case '[':
+		    /* \%[abc] not supported yet */
+		    return FAIL;
 
-			    default:
-				/* not supported yet */
-				return FAIL;
-			}
-			break;
+		default:
+		    /* not supported yet */
+		    return FAIL;
+	    }
+	    break;
 
 collection:
-		case Magic('['):
-		    /*
-		     * Glue is emitted between several atoms from the [].
-		     * It is either NFA_OR, or NFA_CONCAT.
-		     *
-		     * [abc] expands to 'a b NFA_OR c NFA_OR' (in postfix notation)
-		     * [^abc] expands to 'a NFA_NOT b NFA_NOT NFA_CONCAT c NFA_NOT NFA_CONCAT
-		     *		NFA_END_NEG_RANGE NFA_CONCAT' (in postfix notation)
-		     *
-		     */
+	case Magic('['):
+	    /*
+	     * Glue is emitted between several atoms from the [].
+	     * It is either NFA_OR, or NFA_CONCAT.
+	     *
+	     * [abc] expands to 'a b NFA_OR c NFA_OR' (in postfix notation)
+	     * [^abc] expands to 'a NFA_NOT b NFA_NOT NFA_CONCAT c NFA_NOT
+	     *		NFA_CONCAT NFA_END_NEG_RANGE NFA_CONCAT' (in postfix
+	     *		notation)
+	     *
+	     */
 
 
 /* Emit negation atoms, if needed
@@ -768,346 +769,353 @@ collection:
 	    else		    \
 		first = FALSE;
 
-		    p = regparse;
-		    endp = skip_anyof(p);
-		    if (*endp == ']')
+	    p = regparse;
+	    endp = skip_anyof(p);
+	    if (*endp == ']')
+	    {
+		/*
+		 * Try to reverse engineer character classes. For example,
+		 * recognize that [0-9] stands for  \d and [A-Za-z_] with \h,
+		 * and perform the necessary substitutions in the NFA
+		 */
+		result = nfa_recognize_char_class(regparse,endp,
+							    extra == ADD_NL);
+		if (result != FAIL)
+		{
+		    if (result >= NFA_DIGIT && result <= NFA_NUPPER)
+			EMIT(result);
+		    else	/* must be char class + newline */
 		    {
-			/*
-			 * Try to reverse engineer character classes. For example,
-			 * recognize that [0-9] stands for  \d and [A-Za-z_] with \h,
-			 * and perform the necessary substitutions in the NFA
-			 */
-			result = nfa_recognize_char_class(regparse,endp, extra == ADD_NL);
-			if (result != FAIL)
+			EMIT(result - ADD_NL);
+			EMIT(NFA_NEWL);
+			EMIT(NFA_OR);
+		    }
+		    regparse = endp;
+		    nfa_inc(&regparse);
+		    return OK;
+		}
+		/*
+		 * Failed to recognize a character class. Use the simple
+		 * version that turns [abc] into 'a' OR 'b' OR 'c'
+		 */
+		startc = endc = oldstartc = -1;
+		first = TRUE;	    /* Emitting first atom in this sequence? */
+		negated = FALSE;
+		glue = NFA_OR;
+		if (*regparse == '^')			/* negated range */
+		{
+		    negated = TRUE;
+		    glue = NFA_CONCAT;
+		    nfa_inc(&regparse);
+		}
+		if (*regparse == '-')
+		{
+		    startc = '-';
+		    EMIT(startc);
+		    TRY_NEG();
+		    EMIT_GLUE();
+		    nfa_inc(&regparse);
+		}
+		/* Emit the OR branches for each character in the [] */
+		emit_range = FALSE;
+		while (regparse < endp)
+		{
+		    oldstartc = startc;
+		    startc = -1;
+		    got_coll_char = FALSE;
+		    if (*regparse == '[')
+		    {
+			/* Check for [: :], [= =], [. .] */
+			equiclass = collclass = 0;
+			charclass = get_char_class(&regparse);
+			if (charclass == CLASS_NONE)
 			{
-			    if (result >= NFA_DIGIT && result <= NFA_NUPPER)
-				EMIT(result);
-			    else	/* must be char class + newline */
+			    equiclass = get_equi_class(&regparse);
+			    if (equiclass == 0)
+				collclass = get_coll_element(&regparse);
+			}
+
+			/* Character class like [:alpha:]  */
+			if (charclass != CLASS_NONE)
+			{
+			    switch (charclass)
 			    {
-				EMIT(result - ADD_NL);
-				EMIT(NFA_NEWL);
-				EMIT(NFA_OR);
+				case CLASS_ALNUM:
+				    EMIT(NFA_CLASS_ALNUM);
+				    break;
+				case CLASS_ALPHA:
+				    EMIT(NFA_CLASS_ALPHA);
+				    break;
+				case CLASS_BLANK:
+				    EMIT(NFA_CLASS_BLANK);
+				    break;
+				case CLASS_CNTRL:
+				    EMIT(NFA_CLASS_CNTRL);
+				    break;
+				case CLASS_DIGIT:
+				    EMIT(NFA_CLASS_DIGIT);
+				    break;
+				case CLASS_GRAPH:
+				    EMIT(NFA_CLASS_GRAPH);
+				    break;
+				case CLASS_LOWER:
+				    EMIT(NFA_CLASS_LOWER);
+				    break;
+				case CLASS_PRINT:
+				    EMIT(NFA_CLASS_PRINT);
+				    break;
+				case CLASS_PUNCT:
+				    EMIT(NFA_CLASS_PUNCT);
+				    break;
+				case CLASS_SPACE:
+				    EMIT(NFA_CLASS_SPACE);
+				    break;
+				case CLASS_UPPER:
+				    EMIT(NFA_CLASS_UPPER);
+				    break;
+				case CLASS_XDIGIT:
+				    EMIT(NFA_CLASS_XDIGIT);
+				    break;
+				case CLASS_TAB:
+				    EMIT(NFA_CLASS_TAB);
+				    break;
+				case CLASS_RETURN:
+				    EMIT(NFA_CLASS_RETURN);
+				    break;
+				case CLASS_BACKSPACE:
+				    EMIT(NFA_CLASS_BACKSPACE);
+				    break;
+				case CLASS_ESCAPE:
+				    EMIT(NFA_CLASS_ESCAPE);
+				    break;
 			    }
-			    regparse = endp;
-			    nfa_inc(&regparse);
-			    return OK;
-			}
-			/*
-			 * Failed to recognize a character class. Use the simple version
-			 * that turns [abc] into 'a' OR 'b' OR 'c'
-			 */
-			startc = endc = oldstartc = -1;
-			first = TRUE;		/* Emitting first atom in this sequence? */
-			negated = FALSE;
-			glue = NFA_OR;
-			if (*regparse == '^')			/* negated range */
-			{
-			    negated = TRUE;
-			    glue = NFA_CONCAT;
-			    nfa_inc(&regparse);
-			}
-			if (*regparse == '-')
-			{
-			    startc = '-';
-			    EMIT(startc);
 			    TRY_NEG();
 			    EMIT_GLUE();
-			    nfa_inc(&regparse);
+			    continue;
 			}
-			/* Emit the OR branches for each character in the [] */
-			emit_range = FALSE;
-			while (regparse < endp)
+			/* Try equivalence class [=a=] and the like */
+			if (equiclass != 0)
 			{
-			    oldstartc = startc;
-			    startc = -1;
-			    got_coll_char = FALSE;
-			    if (*regparse == '[')
+			    result = nfa_emit_equi_class(equiclass, negated);
+			    if (result == FAIL)
 			    {
-				/* Check for [: :], [= =], [. .] */
-				equiclass = collclass = 0;
-				charclass = get_char_class(&regparse);
-				if (charclass == CLASS_NONE)
-				{
-				    equiclass = get_equi_class(&regparse);
-				    if (equiclass == 0)
-					collclass = get_coll_element(&regparse);
-				}
-
-				/* Character class like [:alpha:]  */
-				if (charclass != CLASS_NONE)
-				{
-				    switch (charclass)
-				    {
-					case CLASS_ALNUM:
-					    EMIT(NFA_CLASS_ALNUM);
-					    break;
-					case CLASS_ALPHA:
-					    EMIT(NFA_CLASS_ALPHA);
-					    break;
-					case CLASS_BLANK:
-					    EMIT(NFA_CLASS_BLANK);
-					    break;
-					case CLASS_CNTRL:
-					    EMIT(NFA_CLASS_CNTRL);
-					    break;
-					case CLASS_DIGIT:
-					    EMIT(NFA_CLASS_DIGIT);
-					    break;
-					case CLASS_GRAPH:
-					    EMIT(NFA_CLASS_GRAPH);
-					    break;
-					case CLASS_LOWER:
-					    EMIT(NFA_CLASS_LOWER);
-					    break;
-					case CLASS_PRINT:
-					    EMIT(NFA_CLASS_PRINT);
-					    break;
-					case CLASS_PUNCT:
-					    EMIT(NFA_CLASS_PUNCT);
-					    break;
-					case CLASS_SPACE:
-					    EMIT(NFA_CLASS_SPACE);
-					    break;
-					case CLASS_UPPER:
-					    EMIT(NFA_CLASS_UPPER);
-					    break;
-					case CLASS_XDIGIT:
-					    EMIT(NFA_CLASS_XDIGIT);
-					    break;
-					case CLASS_TAB:
-					    EMIT(NFA_CLASS_TAB);
-					    break;
-					case CLASS_RETURN:
-					    EMIT(NFA_CLASS_RETURN);
-					    break;
-					case CLASS_BACKSPACE:
-					    EMIT(NFA_CLASS_BACKSPACE);
-					    break;
-					case CLASS_ESCAPE:
-					    EMIT(NFA_CLASS_ESCAPE);
-					    break;
-				    }
-				    TRY_NEG();
-				    EMIT_GLUE();
-				    continue;
-				}
-				/* Try equivalence class [=a=] and the like */
-				if (equiclass != 0)
-				{
-				    result = nfa_emit_equi_class(equiclass, negated);
-				    if (result == FAIL)
-				    {
-					/* should never happen */
-					EMSG_RET_FAIL("E999: Error building NFA with equivalence class!");
-				    }
-				    EMIT_GLUE();
-				    continue;
-				}
-				/* Try collating class like [. .]  */
-				if (collclass != 0)
-				{
-				    startc = collclass;	    /* allow [.a.]-x as a range */
-				    /* Will emit the proper atom at the end of the while loop */
-				}
+				/* should never happen */
+				EMSG_RET_FAIL("E999: Error building NFA with equivalence class!");
 			    }
-			    /* Try a range like 'a-x' or '\t-z' */
-			    if (*regparse == '-')
-			    {
-				emit_range = TRUE;
-				startc = oldstartc;
-				nfa_inc(&regparse);
-				continue;	    /* reading the end of the range */
-			    }
+			    EMIT_GLUE();
+			    continue;
+			}
+			/* Try collating class like [. .]  */
+			if (collclass != 0)
+			{
+			    startc = collclass;	    /* allow [.a.]-x as a range */
+			    /* Will emit the proper atom at the end of the
+			     * while loop */
+			}
+		    }
+		    /* Try a range like 'a-x' or '\t-z' */
+		    if (*regparse == '-')
+		    {
+			emit_range = TRUE;
+			startc = oldstartc;
+			nfa_inc(&regparse);
+			continue;	    /* reading the end of the range */
+		    }
 
-			    /* Now handle simple and escaped characters.
-			     * Only "\]", "\^", "\]" and "\\" are special in Vi.  Vim
-			     * accepts "\t", "\e", etc., but only when the 'l' flag in
-			     * 'cpoptions' is not included.
-			     * Posix doesn't recognize backslash at all.
-			     */
-			    if  (*regparse == '\\' && !cpo_bsl && regparse+1 <= endp &&
-				    (vim_strchr(REGEXP_INRANGE, regparse[1]) != NULL ||
-					(!cpo_lit && vim_strchr(REGEXP_ABBR, regparse[1]) != NULL)
-				    )
-				)
-			    {
-				nfa_inc(&regparse);
+		    /* Now handle simple and escaped characters.
+		     * Only "\]", "\^", "\]" and "\\" are special in Vi.  Vim
+		     * accepts "\t", "\e", etc., but only when the 'l' flag in
+		     * 'cpoptions' is not included.
+		     * Posix doesn't recognize backslash at all.
+		     */
+		    if  (*regparse == '\\' && !cpo_bsl && regparse+1 <= endp &&
+			    (vim_strchr(REGEXP_INRANGE, regparse[1]) != NULL ||
+			     (!cpo_lit && vim_strchr(REGEXP_ABBR, regparse[1])
+									!= NULL)
+			    )
+			)
+		    {
+			nfa_inc(&regparse);
 
-				if (*regparse == 'n' || *regparse == 'n')
-				    startc = reg_string ? NL : NFA_NEWL;
-				else
-				if  (*regparse == 'd'
+			if (*regparse == 'n' || *regparse == 'n')
+			    startc = reg_string ? NL : NFA_NEWL;
+			else
+			    if  (*regparse == 'd'
 				    || *regparse == 'o'
 				    || *regparse == 'x'
 				    || *regparse == 'u'
 				    || *regparse == 'U'
-				    )
-				{
-				    /* TODO(RE) This needs more testing */
-				    startc = coll_get_char();
-				    got_coll_char = TRUE;
-				    nfa_dec(&regparse);
-				}
-				else
-				{
-				    startc = backslash_trans(*regparse);	    /* \r,\t,\e,\b */
-				}
-			    }
-
-			    /* Normal printable char */
-			    if (startc == -1)
-#ifdef FEAT_MBYTE
-				startc = (*mb_ptr2char)(regparse);
-#else
-				startc = *regparse;
-#endif
-
-			    /* Previous char was '-', so this char is end of range. */
-			    if (emit_range)
+				)
 			    {
-				endc = startc; startc = oldstartc;
-				if (startc > endc)
-				    EMSG_RET_FAIL(_(e_invrange));
-#ifdef FEAT_MBYTE
-				if (has_mbyte && ((*mb_char2len)(startc) > 1
-						    || (*mb_char2len)(endc) > 1))
-				{
-				    if (endc > startc + 256)
-					EMSG_RET_FAIL(_(e_invrange));
-				    /* Emit the range. "startc" was already emitted, so skip it. */
-				    for (c = startc+1; c <= endc; c++)
-				    {
-					if ((*mb_char2len)(c) > 1)
-					{
-					    EMIT_MBYTE(c);
-					}
-					else
-					    EMIT(c);
-					TRY_NEG();
-					EMIT_GLUE();
-				    }
-				    emit_range = FALSE;
-				}
-				else
-#endif
-				{
-#ifdef EBCDIC
-				    int alpha_only = FALSE;
-				    /* for alphabetical range skip the gaps
-				     * 'i'-'j', 'r'-'s', 'I'-'J' and 'R'-'S'. */
-				    if (isalpha(startc) && isalpha(endc))
-					alpha_only = TRUE;
-#endif
-				    /* Emit the range. "startc" was already emitted, so skip it. */
-				    for (c = startc+1; c <= endc; c++)
-#ifdef EBCDIC
-					if (!alpha_only || isalpha(startc))
-#endif
-					{
-					    EMIT(c);
-					    TRY_NEG();
-					    EMIT_GLUE();
-					}
-				    emit_range = FALSE;
-				}
+				/* TODO(RE) This needs more testing */
+				startc = coll_get_char();
+				got_coll_char = TRUE;
+				nfa_dec(&regparse);
 			    }
 			    else
-			    /* This char (startc) is not part of a range. Just emit it. */
 			    {
-				/*
-				 * Normally, simply emit startc. But if we get char code=0
-				 * from a collating char, then replace it with 0x0a.
-				 *
-				 * This is needed to completely mimic the behaviour of
-				 * the backtracking engine.
-				 * */
-				if (got_coll_char == TRUE && startc == 0)
-				    EMIT(0x0a);
-				else
+				startc = backslash_trans(*regparse);	    /* \r,\t,\e,\b */
+			    }
+		    }
+
+		    /* Normal printable char */
+		    if (startc == -1)
 #ifdef FEAT_MBYTE
-				    if ((*mb_char2len)(startc) > 1)
-				    {
-					EMIT_MBYTE(startc);
-				    }
-				    else
+			startc = (*mb_ptr2char)(regparse);
+#else
+		    startc = *regparse;
 #endif
-					EMIT(startc);
+
+		    /* Previous char was '-', so this char is end of range. */
+		    if (emit_range)
+		    {
+			endc = startc; startc = oldstartc;
+			if (startc > endc)
+			    EMSG_RET_FAIL(_(e_invrange));
+#ifdef FEAT_MBYTE
+			if (has_mbyte && ((*mb_char2len)(startc) > 1
+				    || (*mb_char2len)(endc) > 1))
+			{
+			    if (endc > startc + 256)
+				EMSG_RET_FAIL(_(e_invrange));
+			    /* Emit the range. "startc" was already emitted, so
+			     * skip it. */
+			    for (c = startc+1; c <= endc; c++)
+			    {
+				if ((*mb_char2len)(c) > 1)
+				{
+				    EMIT_MBYTE(c);
+				}
+				else
+				    EMIT(c);
 				TRY_NEG();
 				EMIT_GLUE();
 			    }
-
-			    nfa_inc(&regparse);
-			}	    /* while (p < endp) */
-
-			nfa_dec(&regparse);
-			if (*regparse == '-')		/* if last, '-' is just a char */
-			{
-			    EMIT('-');
-			    TRY_NEG();
-			    EMIT_GLUE();
-			}
-			nfa_inc(&regparse);
-
-			if (extra == ADD_NL)		/* \_[] also matches \n */
-			{
-			    EMIT(reg_string ? NL : NFA_NEWL);
-			    TRY_NEG();
-			    EMIT_GLUE();
-			}
-
-			/* skip the trailing ] */
-			regparse = endp;
-			nfa_inc(&regparse);
-			if (negated == TRUE)
-			{
-			    EMIT(NFA_END_NEG_RANGE);	/* Mark end of negated char range */
-			    EMIT(NFA_CONCAT);
-			}
-			return OK;
-		    }		/* if exists closing ] */
-		    else
-		    if (reg_strict)
-		    {
-			syntax_error = TRUE;
-			EMSG_RET_FAIL(_("E769: Missing ] after ["));
-		    }
-
-		/* FALLTHROUGH */
-		default:
-		{
-#ifdef FEAT_MBYTE
-nfa_do_multibyte:
-			/* length of current char, with composing chars,
-			 * from pointer */
-			plen = (*mb_ptr2len)(old_regparse);
-			if (enc_utf8 && clen != plen)
-			{
-			/* A composing character is always handled as a
-			 * separate atom, surrounded by NFA_COMPOSING and
-			 * NFA_END_COMPOSING. Note that right now we are
-			 * building the postfix form, not the NFA itself;
-			 * a composing char could be: a, b, c, NFA_COMPOSING
-			 * where 'a', 'b', 'c' are chars with codes > 256.
-			 */
-			    EMIT_COMPOSING_UTF(old_regparse);
-			    regparse = old_regparse + plen;
-			}
-			else
-			/* A multi-byte character is always handled as a
-			 * separate atom, surrounded by NFA_MULTIBYTE and
-			 * NFA_END_MULTIBYTE */
-			if (plen > 1)
-			{
-			    EMIT_MBYTE(c);
+			    emit_range = FALSE;
 			}
 			else
 #endif
 			{
-			    c = no_Magic(c);
-			    EMIT(c);
+#ifdef EBCDIC
+			    int alpha_only = FALSE;
+			    /* for alphabetical range skip the gaps
+			     * 'i'-'j', 'r'-'s', 'I'-'J' and 'R'-'S'. */
+			    if (isalpha(startc) && isalpha(endc))
+				alpha_only = TRUE;
+#endif
+			    /* Emit the range. "startc" was already emitted, so
+			     * skip it. */
+			    for (c = startc+1; c <= endc; c++)
+#ifdef EBCDIC
+				if (!alpha_only || isalpha(startc))
+#endif
+				{
+				    EMIT(c);
+				    TRY_NEG();
+				    EMIT_GLUE();
+				}
+			    emit_range = FALSE;
 			}
-			return OK;
+		    }
+		    else
+			/* This char (startc) is not part of a range. Just emit
+			 * it. */
+		    {
+			/*
+			 * Normally, simply emit startc. But if we get char
+			 * code=0 from a collating char, then replace it with
+			 * 0x0a.
+			 *
+			 * This is needed to completely mimic the behaviour of
+			 * the backtracking engine.
+			 * */
+			if (got_coll_char == TRUE && startc == 0)
+			    EMIT(0x0a);
+			else
+#ifdef FEAT_MBYTE
+			    if ((*mb_char2len)(startc) > 1)
+			    {
+				EMIT_MBYTE(startc);
+			    }
+			    else
+#endif
+				EMIT(startc);
+			TRY_NEG();
+			EMIT_GLUE();
+		    }
+
+		    nfa_inc(&regparse);
+		}	    /* while (p < endp) */
+
+		nfa_dec(&regparse);
+		if (*regparse == '-')	    /* if last, '-' is just a char */
+		{
+		    EMIT('-');
+		    TRY_NEG();
+		    EMIT_GLUE();
 		}
+		nfa_inc(&regparse);
+
+		if (extra == ADD_NL)	    /* \_[] also matches \n */
+		{
+		    EMIT(reg_string ? NL : NFA_NEWL);
+		    TRY_NEG();
+		    EMIT_GLUE();
+		}
+
+		/* skip the trailing ] */
+		regparse = endp;
+		nfa_inc(&regparse);
+		if (negated == TRUE)
+		{
+		    EMIT(NFA_END_NEG_RANGE);	/* Mark end of negated char range */
+		    EMIT(NFA_CONCAT);
+		}
+		return OK;
+	    }		/* if exists closing ] */
+	    else
+		if (reg_strict)
+		{
+		    syntax_error = TRUE;
+		    EMSG_RET_FAIL(_("E769: Missing ] after ["));
+		}
+
+	/* FALLTHROUGH */
+	default:
+	    {
+#ifdef FEAT_MBYTE
+nfa_do_multibyte:
+		/* length of current char, with composing chars,
+		 * from pointer */
+		plen = (*mb_ptr2len)(old_regparse);
+		if (enc_utf8 && clen != plen)
+		{
+		    /* A composing character is always handled as a
+		     * separate atom, surrounded by NFA_COMPOSING and
+		     * NFA_END_COMPOSING. Note that right now we are
+		     * building the postfix form, not the NFA itself;
+		     * a composing char could be: a, b, c, NFA_COMPOSING
+		     * where 'a', 'b', 'c' are chars with codes > 256.
+		     */
+		    EMIT_COMPOSING_UTF(old_regparse);
+		    regparse = old_regparse + plen;
+		}
+		else
+		    /* A multi-byte character is always handled as a
+		     * separate atom, surrounded by NFA_MULTIBYTE and
+		     * NFA_END_MULTIBYTE */
+		    if (plen > 1)
+		    {
+			EMIT_MBYTE(c);
+		    }
+		    else
+#endif
+		    {
+			c = no_Magic(c);
+			EMIT(c);
+		    }
+		return OK;
+	    }
     }
 
 #undef TRY_NEG
@@ -1231,7 +1239,8 @@ nfa_regpiece()
 		syntax_error = TRUE;
 		EMSG_RET_FAIL("E999: (NFA regexp) Error reading repetition limits");
 	    }
-	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to <atom>*  */
+	    /*  <atom>{0,inf}, <atom>{0,} and <atom>{}  are equivalent to
+	     *  <atom>*  */
 	    if (minval == 0 && maxval == MAX_LIMIT && greedy)
 	    {
 		EMIT(NFA_STAR);
@@ -1334,26 +1343,26 @@ nfa_regconcat()
 		regflags |= RF_NOICASE;
 		skipchr_keepstart();
 		break;
-            case Magic('v'):
+	    case Magic('v'):
 		reg_magic = MAGIC_ALL;
 		skipchr_keepstart();
 		curchr = -1;
 		break;
-            case Magic('m'):
-                reg_magic = MAGIC_ON;
-                skipchr_keepstart();
-                curchr = -1;
-                break;
-            case Magic('M'):
-                reg_magic = MAGIC_OFF;
-                skipchr_keepstart();
-                curchr = -1;
-                break;
-            case Magic('V'):
-                reg_magic = MAGIC_NONE;
-                skipchr_keepstart();
-                curchr = -1;
-                break;
+	    case Magic('m'):
+		reg_magic = MAGIC_ON;
+		skipchr_keepstart();
+		curchr = -1;
+		break;
+	    case Magic('M'):
+		reg_magic = MAGIC_OFF;
+		skipchr_keepstart();
+		curchr = -1;
+		break;
+	    case Magic('V'):
+		reg_magic = MAGIC_NONE;
+		skipchr_keepstart();
+		curchr = -1;
+		break;
 
 	    default:
 		if (nfa_regpiece() == FAIL)
@@ -1506,7 +1515,8 @@ static char_u code[50];
 static void nfa_set_code(c)
     int c;
 {
-int addnl = FALSE;
+    int addnl = FALSE;
+
     if (c >= NFA_FIRST_NL && c <= NFA_LAST_NL)
     {
 	addnl = TRUE;
@@ -1524,10 +1534,10 @@ int addnl = FALSE;
 	case NFA_ZEND:	    STRCPY(code, "NFA_ZEND"); break;
 
 	case NFA_PREV_ATOM_NO_WIDTH:	STRCPY(code, "NFA_PREV_ATOM_NO_WIDTH"); break;
-	case NFA_NOPEN:	STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
-	case NFA_NCLOSE:	STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
-	case NFA_START_INVISIBLE:	STRCPY(code, "NFA_START_INVISIBLE"); break;
-	case NFA_END_INVISIBLE:		STRCPY(code, "NFA_END_INVISIBLE"); break;
+	case NFA_NOPEN:		    STRCPY(code, "NFA_MOPEN_INVISIBLE"); break;
+	case NFA_NCLOSE:	    STRCPY(code, "NFA_MCLOSE_INVISIBLE"); break;
+	case NFA_START_INVISIBLE:   STRCPY(code, "NFA_START_INVISIBLE"); break;
+	case NFA_END_INVISIBLE:	    STRCPY(code, "NFA_END_INVISIBLE"); break;
 
 	case NFA_MULTIBYTE:	    STRCPY(code, "NFA_MULTIBYTE"); break;
 	case NFA_END_MULTIBYTE:	    STRCPY(code, "NFA_END_MULTIBYTE"); break;
@@ -2030,7 +2040,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	    PUSH(frag(s, append(e.out, list1(&s->out1))));
 	    break;
 
-	case NFA_QUEST_NONGREEDY:	/* zero or one atoms => non-greedy match */
+	case NFA_QUEST_NONGREEDY:   /* zero or one atoms => non-greedy match */
 	    if (nfa_calc_size == TRUE)
 	    {
 		nstate ++;
@@ -2191,7 +2201,7 @@ post2nfa(postfix, end, nfa_calc_size)
     if (nfa_calc_size == TRUE)
     {
 	nstate ++;
-	return NULL;	    /* Return value when counting size is ignored anyway */
+	return NULL;	/* Return value when counting size is ignored anyway */
     }
 
     e = POP();
@@ -2663,7 +2673,7 @@ displaying on stderr ... ");
     listtbl[1][0] = nextlist;
     listtbl[1][1] = NULL;
 #define	ADD_POS_NEG_STATE(node)						    \
-    ll = listtbl[result ? 1 : 0][node->negated];				    \
+    ll = listtbl[result ? 1 : 0][node->negated];			    \
     if (ll != NULL)							    \
 	addstate(ll, node->out , &t->sub, n, listid+1, &match);
 
@@ -2830,7 +2840,8 @@ displaying on stderr ... ");
 			    t->sub.end[j] = m->end[j];
 			}
 		    /* t->state->out1 is the corresponding END_INVISIBLE node */
-		    addstate(thislist, t->state->out1->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out1->out, &t->sub, 0, listid,
+								    &match);
 		}
 		else
 		{
@@ -2841,12 +2852,14 @@ displaying on stderr ... ");
 
 	    case NFA_BOL:
 		if (reginput == regline)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+								    &match);
 		break;
 
 	    case NFA_EOL:
 		if (c == NUL)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+								    &match);
 		break;
 
 	    case NFA_BOW:
@@ -2874,7 +2887,8 @@ displaying on stderr ... ");
 			bol = FALSE;
 		}
 		if (bol)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+								    &match);
 		break;
 	    }
 
@@ -2903,7 +2917,8 @@ displaying on stderr ... ");
 			eol = FALSE;
 		}
 		if (eol)
-		    addstate(thislist, t->state->out, &t->sub, 0, listid, &match);
+		    addstate(thislist, t->state->out, &t->sub, 0, listid,
+								    &match);
 		break;
 	    }
 
@@ -2933,7 +2948,8 @@ displaying on stderr ... ");
 		/* if input char length doesn't match regexp char length */
 		if (len -1 < n || sta->c != endnode)
 		    result = OK - 1;
-		end = t->state->out1;	    /* NFA_END_MULTIBYTE or NFA_END_COMPOSING */
+		end = t->state->out1;	    /* NFA_END_MULTIBYTE or
+					       NFA_END_COMPOSING */
 		/* If \Z was present, then ignore composing characters */
 		if (regflags & RF_ICOMBINE)
 		    result = 1 ^ sta->negated;
@@ -2949,7 +2965,8 @@ displaying on stderr ... ");
 			reg_nextline();
 			reginput_updated = TRUE;
 		    }
-		    addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1,
+								    &match);
 		}
 		break;
 
@@ -2977,13 +2994,15 @@ displaying on stderr ... ");
 		/* This follows a series of negated nodes, like:
 		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc. */
 		if (c > 0)
-		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1,
+								    &match);
 		break;
 
 	    case NFA_ANY:
 		/* Any printable char, not just any char. '\0' (end of input) must not match */
 		if (c > 0)
-		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
+		    addstate(nextlist, t->state->out, &t->sub, n, listid+1,
+								    &match);
 		break;
 
 /* Character classes like \a for alpha, \d for digit etc */
@@ -3120,7 +3139,8 @@ displaying on stderr ... ");
 	    default:	/* regular character */
 		result = (no_Magic(t->state->c) == c);
 		if (!result)
-		    result = ireg_ic == TRUE && MB_TOLOWER(t->state->c) == MB_TOLOWER(c);
+		    result = ireg_ic == TRUE
+				&& MB_TOLOWER(t->state->c) == MB_TOLOWER(c);
 		ADD_POS_NEG_STATE(t->state);
 		break;
 	    }
