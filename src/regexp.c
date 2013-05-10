@@ -41,7 +41,7 @@
 #include "vim.h"
 
 /* Uncomment this if you never want to see debugging logs or files related
- * to regular expressionsm, even when compiling with -DDEBUG. */
+ * to regular expressions, even when compiling with -DDEBUG. */
 /*#undef DEBUG*/
 
 #ifdef DEBUG

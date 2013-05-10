@@ -61,7 +61,7 @@ typedef struct
 } bt_regprog_T;
 
 /*
- * Stucture representating a NFA state.
+ * Structure representing a NFA state.
  * A NFA state may have no outgoing edge, when it is a NFA_MATCH state.
  */
 typedef struct nfa_state nfa_state_T;

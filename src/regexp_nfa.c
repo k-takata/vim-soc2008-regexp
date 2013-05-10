@@ -58,7 +58,7 @@ static void nfa_set_neg_listids __ARGS((nfa_state_T *start));
 static inline void nfa_inc __ARGS((char_u **p));
 static inline void nfa_dec __ARGS((char_u **p));
 
-/* helper fuctions used when doing re2post() ... regatom() parsing */
+/* helper functions used when doing re2post() ... regatom() parsing */
 #define EMIT(c)	do {				\
 		    if (post_ptr >= post_end)	\
 			return FAIL;		\
@@ -974,7 +974,7 @@ collection:
 				{
 				    if (endc > startc + 256)
 					EMSG_RET_FAIL(_(e_invrange));
-				    /* Emit the range. "startc" was already emmitted, so skip it. */
+				    /* Emit the range. "startc" was already emitted, so skip it. */
 				    for (c = startc+1; c <= endc; c++)
 				    {
 					if ((*mb_char2len)(c) > 1)
@@ -998,7 +998,7 @@ collection:
 				    if (isalpha(startc) && isalpha(endc))
 					alpha_only = TRUE;
 #endif
-				    /* Emit the range. "startc" was already emmitted, so skip it. */
+				    /* Emit the range. "startc" was already emitted, so skip it. */
 				    for (c = startc+1; c <= endc; c++)
 #ifdef EBCDIC
 					if (!alpha_only || isalpha(startc))
@@ -1144,7 +1144,7 @@ nfa_regpiece()
     /* Save the current position in the regexp, so that we can use it if 
      * <atom>{m,n} is next. */
     old_regparse = regparse;
-    /* Save current number of open paranthesis, so we can use it if
+    /* Save current number of open parenthesis, so we can use it if
      * <atom>{m,n} is next */
     old_regnpar = regnpar;
     /* store current pos in the postfix form, for \{m,n} involving 0s */
@@ -1216,7 +1216,7 @@ nfa_regpiece()
 	     * a{-1,3} will expand to 'aa??a??', where ?? is the nongreedy 
 	     * version of '?' 
 	     * \v(ab){2,3} will expand to '(ab)(ab)(ab)?', where all the 
-	     * paranthesis have the same id
+	     * parenthesis have the same id
 	     */
 
 	    greedy = TRUE;
@@ -1262,7 +1262,7 @@ nfa_regpiece()
 	    {
 		regparse = old_regparse;	/* Goto beginning of the repeated atom */
 		curchr = -1;
-		regnpar = old_regnpar;		/* Restore count of paranthesis */
+		regnpar = old_regnpar;		/* Restore count of parenthesis */
 		old_post_ptr = post_ptr;
 		if (nfa_regatom() == FAIL)
 		    return FAIL;
@@ -2136,7 +2136,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	    /* Allow "NFA_MOPEN" as a valid postfix representation for
 	     * the empty regexp "". In this case, the NFA will be
 	     * NFA_MOPEN -> NFA_MCLOSE. Note that this also allows
-	     * empty groups of paranthesis, and empty mbyte chars */
+	     * empty groups of parenthesis, and empty mbyte chars */
 	    if (stackp == stack)
 	    {
 		s = new_state(mopen, NULL, NULL);
@@ -2150,7 +2150,7 @@ post2nfa(postfix, end, nfa_calc_size)
 		break;
 	    }
 
-	    /* At least one node was emmited before NFA_MOPEN, so
+	    /* At least one node was emitted before NFA_MOPEN, so
 	     * at least one node will be between NFA_MOPEN and NFA_MCLOSE */
 	    e = POP();
 	    s = new_state(mopen, e.start, NULL);   /* `(' */
@@ -3510,7 +3510,7 @@ nfa_regexec_nl(rmp, line, col)
  * then nfa_regexec_multi() returns 3. while the original
  * vim_regexec_multi() returns 0 and a second call at line 2 will return 2.
  *
- * FIXME if this behivior is not compatible.
+ * FIXME if this behavior is not compatible.
  */
     static long
 nfa_regexec_multi(rmp, win, buf, lnum, col, tm)
