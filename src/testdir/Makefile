@@ -65,8 +65,8 @@ test1.out: test1.in
 		else echo $* NO OUTPUT >>test.log; \
 		fi"
 	@/bin/sh -c "if test -f valgrind; then\
-		  			mv -f valgrind valgrind.$*; \
-				 fi"
+		  mv -f valgrind valgrind.$*; \
+		fi"
 	-rm -rf X* test.ok viminfo
 
 test49.out: test49.vim
