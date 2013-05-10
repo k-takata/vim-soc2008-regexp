@@ -20,19 +20,19 @@ static void nfa_dump __ARGS((nfa_regprog_T *prog));
 FILE	    *f;
 #endif
 
-/* 
- NFA errors can be of 3 types: 
- *** NFA runtime errors, when something unknown goes wrong. The NFA fails 
-     silently and revert the to backtracking engine. 
+/*
+ NFA errors can be of 3 types:
+ *** NFA runtime errors, when something unknown goes wrong. The NFA fails
+     silently and revert the to backtracking engine.
      syntax_error = FALSE;
  *** Regexp syntax errors, when the input regexp is not syntactically correct.
-     The NFA engine displays an error message, and nothing else happens. 
+     The NFA engine displays an error message, and nothing else happens.
      syntax_error = TRUE
- *** Unsupported features, when the input regexp uses an operator that is not 
+ *** Unsupported features, when the input regexp uses an operator that is not
      implemented in the NFA. The NFA engine fails silently, and reverts to the
-     old backtracking engine. 
+     old backtracking engine.
      syntax_error = FALSE
- "The NFA fails" means that "compiling the regexp with the NFA fails": 
+ "The NFA fails" means that "compiling the regexp with the NFA fails":
  nfa_regcomp returns FAIL.
 */
 static int syntax_error = FALSE;
@@ -116,10 +116,10 @@ nfa_regcomp_start(expr, re_flags)
     return OK;
 }
 
-/* 
- * Search between "start" and "end" and try to recognize a 
- * character class in expanded form. For example [0-9]. 
- * On success, return the id the character class to be emitted. 
+/*
+ * Search between "start" and "end" and try to recognize a
+ * character class in expanded form. For example [0-9].
+ * On success, return the id the character class to be emitted.
  * On failure, return 0 (=FAIL)
  * Start points to the first char of the range, while end should point
  * to the closing brace.
@@ -286,7 +286,7 @@ char_u	config[NCONFIGS][9] = {
 /*
  * Produce the bytes for equivalence class "c".
  * Currently only handles latin1, latin9 and utf-8.
- * Emits bytes in postfix notation: 'a,b,NFA_OR,c,NFA_OR' is 
+ * Emits bytes in postfix notation: 'a,b,NFA_OR,c,NFA_OR' is
  * equivalent to 'a OR b OR c'
  *
  * NOTE! When changing this function, also update reg_equi_class()
@@ -416,7 +416,7 @@ int	glue = neg == TRUE ? NFA_CONCAT : NFA_OR;
 static int nfa_reg __ARGS((int paren));
 
 /* Increments the pointer "p" by one (multi-byte) character */
-    static inline void 
+    static inline void
 nfa_inc(p)
     char_u **p;
 {
@@ -429,7 +429,7 @@ nfa_inc(p)
 }
 
 /* Decrements the pointer "p" by one (multi-byte) character */
-    static inline void 
+    static inline void
 nfa_dec(p)
     char_u **p;
 {
@@ -742,18 +742,18 @@ static char_u	buf[30];
 
 collection:
 		case Magic('['):
-		    /* 
-		     * Glue is emitted between several atoms from the []. 
-		     * It is either NFA_OR, or NFA_CONCAT. 
+		    /*
+		     * Glue is emitted between several atoms from the [].
+		     * It is either NFA_OR, or NFA_CONCAT.
 		     *
 		     * [abc] expands to 'a b NFA_OR c NFA_OR' (in postfix notation)
 		     * [^abc] expands to 'a NFA_NOT b NFA_NOT NFA_CONCAT c NFA_NOT NFA_CONCAT
-		     *		NFA_END_NEG_RANGE NFA_CONCAT' (in postfix notation)	
+		     *		NFA_END_NEG_RANGE NFA_CONCAT' (in postfix notation)
 		     *
 		     */
 
 
-/* Emit negation atoms, if needed 
+/* Emit negation atoms, if needed
  * The CONCAT below merges the NOT with the previous node */
 #define TRY_NEG()		    \
 	    if (negated == TRUE)    \
@@ -772,10 +772,10 @@ collection:
 		    endp = skip_anyof(p);
 		    if (*endp == ']')
 		    {
-			/* 
+			/*
 			 * Try to reverse engineer character classes. For example,
 			 * recognize that [0-9] stands for  \d and [A-Za-z_] with \h,
-			 * and perform the necessary substitutions in the NFA 
+			 * and perform the necessary substitutions in the NFA
 			 */
 			result = nfa_recognize_char_class(regparse,endp, extra == ADD_NL);
 			if (result != FAIL)
@@ -792,7 +792,7 @@ collection:
 			    nfa_inc(&regparse);
 			    return OK;
 			}
-			/* 
+			/*
 			 * Failed to recognize a character class. Use the simple version
 			 * that turns [abc] into 'a' OR 'b' OR 'c'
 			 */
@@ -991,7 +991,7 @@ collection:
 				else
 #endif
 				{
-#ifdef EBCDIC			    
+#ifdef EBCDIC
 				    int alpha_only = FALSE;
 				    /* for alphabetical range skip the gaps
 				     * 'i'-'j', 'r'-'s', 'I'-'J' and 'R'-'S'. */
@@ -1014,11 +1014,11 @@ collection:
 			    else
 			    /* This char (startc) is not part of a range. Just emit it. */
 			    {
-				/* 
-				 * Normally, simply emit startc. But if we get char code=0 
+				/*
+				 * Normally, simply emit startc. But if we get char code=0
 				 * from a collating char, then replace it with 0x0a.
-				 * 
-				 * This is needed to completely mimic the behaviour of 
+				 *
+				 * This is needed to completely mimic the behaviour of
 				 * the backtracking engine.
 				 * */
 				if (got_coll_char == TRUE && startc == 0)
@@ -1077,24 +1077,24 @@ collection:
 		{
 #ifdef FEAT_MBYTE
 nfa_do_multibyte:
-			/* length of current char, with composing chars, 
+			/* length of current char, with composing chars,
 			 * from pointer */
 			plen = (*mb_ptr2len)(old_regparse);
 			if (enc_utf8 && clen != plen)
 			{
-			/* A composing character is always handled as a 
-			 * separate atom, surrounded by NFA_COMPOSING and 
-			 * NFA_END_COMPOSING. Note that right now we are 
-			 * building the postfix form, not the NFA itself; 
+			/* A composing character is always handled as a
+			 * separate atom, surrounded by NFA_COMPOSING and
+			 * NFA_END_COMPOSING. Note that right now we are
+			 * building the postfix form, not the NFA itself;
 			 * a composing char could be: a, b, c, NFA_COMPOSING
-			 * where 'a', 'b', 'c' are chars with codes > 256. 
+			 * where 'a', 'b', 'c' are chars with codes > 256.
 			 */
 			    EMIT_COMPOSING_UTF(old_regparse);
 			    regparse = old_regparse + plen;
 			}
 			else
-			/* A multi-byte character is always handled as a 
-			 * separate atom, surrounded by NFA_MULTIBYTE and 
+			/* A multi-byte character is always handled as a
+			 * separate atom, surrounded by NFA_MULTIBYTE and
 			 * NFA_END_MULTIBYTE */
 			if (plen > 1)
 			{
@@ -1141,7 +1141,7 @@ nfa_regpiece()
     int		old_regnpar;
     int		quest;
 
-    /* Save the current position in the regexp, so that we can use it if 
+    /* Save the current position in the regexp, so that we can use it if
      * <atom>{m,n} is next. */
     old_regparse = regparse;
     /* Save current number of open parenthesis, so we can use it if
@@ -1166,12 +1166,12 @@ nfa_regpiece()
 	    break;
 
 	case Magic('+'):
-	/* 
+	/*
 	 * Trick: Normally, (a*)\+ would match the whole input "aaa".
-	 * The first and only submatch would be "aaa". But the backtracking 
-	 * engine interprets the plus as "try matching one more time", and 
+	 * The first and only submatch would be "aaa". But the backtracking
+	 * engine interprets the plus as "try matching one more time", and
 	 * a* matches a second time at the end of the input, the empty string.
-	 * The submatch will the empty string. 
+	 * The submatch will the empty string.
 	 *
 	 * In order to be consistent with the old engine, we disable NFA_PLUS,
 	 * and replace <atom>+ with <atom><atom>*
@@ -1213,9 +1213,9 @@ nfa_regpiece()
 
 	case Magic('{'):
 	    /* a{2,5} will expand to 'aaa?a?a?'
-	     * a{-1,3} will expand to 'aa??a??', where ?? is the nongreedy 
-	     * version of '?' 
-	     * \v(ab){2,3} will expand to '(ab)(ab)(ab)?', where all the 
+	     * a{-1,3} will expand to 'aa??a??', where ?? is the nongreedy
+	     * version of '?'
+	     * \v(ab){2,3} will expand to '(ab)(ab)(ab)?', where all the
 	     * parenthesis have the same id
 	     */
 
@@ -1633,7 +1633,7 @@ int addnl = FALSE;
 static FILE *debugf;
 
 /* Print the postfix notation of the current regexp */
-    static void 
+    static void
 nfa_postfix_dump(expr, retval)
     char_u  *expr;
     int	    retval;
@@ -1664,7 +1664,7 @@ nfa_postfix_dump(expr, retval)
 }
 
 /* Print the NFA starting with a root node "state" */
-    static void 
+    static void
 nfa_print_state(debugf, state, ident)
     FILE *debugf;
     nfa_state_T *state;
@@ -1690,7 +1690,7 @@ nfa_print_state(debugf, state, ident)
 }
 
 /* Print the NFA state machine */
-    static void 
+    static void
 nfa_dump(prog)
     nfa_regprog_T *prog;
 {
@@ -1843,7 +1843,7 @@ static Frag_T st_pop __ARGS((Frag_T **p, Frag_T *stack));
 static void st_error __ARGS((int *postfix, int *end, int *p));
 
 
-    static void 
+    static void
 st_error (postfix, end, p)
     int *postfix;
     int *end;
@@ -1890,7 +1890,7 @@ int *p2;
 }
 
 /* Push an item onto the stack */
-    inline static void 
+    inline static void
 st_push(s, p, stack_end)
     Frag_T s;
     Frag_T **p;
@@ -1904,7 +1904,7 @@ Frag_T *stackp = *p;
 }
 
 /* Pop an item from the stack */
-    inline static Frag_T 
+    inline static Frag_T
 st_pop(p, stack)
     Frag_T **p;
     Frag_T *stack;
@@ -2057,7 +2057,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	    PUSH(frag(e.start, list1(&s->out1)));
 	    break;
 
-	/* Symbol of 0-length, Used in a repetition 
+	/* Symbol of 0-length, Used in a repetition
 	 * with max/min count of 0 */
 	case NFA_SKIP_CHAR:
 	    if (nfa_calc_size == TRUE)
@@ -2073,7 +2073,7 @@ post2nfa(postfix, end, nfa_calc_size)
 
 	/* The \@= operator: match the preceding atom with 0 width.
 	 * Surrounds the preceding atom with START_INVISIBLE and END_INVISIBLE,
-	 * similarly to MOPEN. 
+	 * similarly to MOPEN.
 	 */
 	case NFA_PREV_ATOM_NO_WIDTH:
 	    /* Maybe this drops the speed */
@@ -2163,7 +2163,7 @@ post2nfa(postfix, end, nfa_calc_size)
 	    patch(e.out, s1);
 
 	    if (mopen == NFA_MULTIBYTE || mopen == NFA_COMPOSING)
-		/* MULTIBYTE->out1 = END_MULTIBYTE 
+		/* MULTIBYTE->out1 = END_MULTIBYTE
 		* COMPOSING->out1 = END_COMPOSING */
 		patch(list1(&s->out1), s1);
 
@@ -2331,8 +2331,8 @@ wrong ! Why wasn't it processed already? \n\n");
 	    addstate(l, state->out, m, off, lid, match);
 	    break;
 
-	/* If this state is reached, then a recursive call of nfa_regmatch() 
-	 * succeeded. the next call saves the found submatches in the 
+	/* If this state is reached, then a recursive call of nfa_regmatch()
+	 * succeeded. the next call saves the found submatches in the
 	 * first state after the "invisible" branch. */
 //	case NFA_END_INVISIBLE:
 //	    break;
@@ -2431,7 +2431,7 @@ wrong ! Why wasn't it processed already? \n\n");
 }
 
 /* Check character class "class" against current character c. */
-    static int 
+    static int
 check_char_class(class, c)
     int		class;
     int		c;
@@ -2511,7 +2511,7 @@ check_char_class(class, c)
 }
 
 /* Set all NFA nodes' list ID equal to -1 */
-    static void 
+    static void
 nfa_set_neg_listids(start)
     nfa_state_T	    *start;
 {
@@ -2526,7 +2526,7 @@ nfa_set_neg_listids(start)
 }
 
 /* Set all NFA nodes' list ID equal to 0 */
-    static void 
+    static void
 nfa_set_null_listids(start)
     nfa_state_T	    *start;
 {
@@ -2541,7 +2541,7 @@ nfa_set_null_listids(start)
 }
 
 /* Save list IDs for all NFA states in "list" */
-    static void 
+    static void
 nfa_save_listids(start, list)
     nfa_state_T	    *start;
     int		    *list;
@@ -2558,7 +2558,7 @@ nfa_save_listids(start, list)
 }
 
 /* Restore list IDs from "list" to all NFA states */
-    static void 
+    static void
 nfa_restore_listids(start, list)
     nfa_state_T	    *start;
     int		    *list;
@@ -2654,9 +2654,9 @@ displaying on stderr ... ");
 #endif
     addstate(thislist, start, m, 0, listid, &match);
 
-/* There are two cases when the NFA advances: 1. input char matches the 
- * NFA node and 2. input char does not match the NFA node, but the next 
- * node is NFA_NOT. The following macro calls addstate() according to 
+/* There are two cases when the NFA advances: 1. input char matches the
+ * NFA node and 2. input char does not match the NFA node, but the next
+ * node is NFA_NOT. The following macro calls addstate() according to
  * these rules. It is used A LOT, so use the "listtbl" table for speed */
     listtbl[0][0] = NULL;
     listtbl[0][1] = neglist;
@@ -2726,7 +2726,7 @@ again:
 #endif
 #ifdef ENABLE_LOG
     nfa_set_code(t->state->c);
-    fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id), 
+    fprintf(f, "(%d) %s, code %d ... \n", abs(t->state->id),
 	code, (int)t->state->c);
 #endif
 
@@ -2753,9 +2753,9 @@ again:
 		break;
 
 	    /* This is only encountered after a NFA_START_INVISIBLE node. They
-	     * surround a zero-width group, used with "\@=" and "\&". 
-	     * If we got here, it means that the current "invisible" group finished 
-	     * successfully, so return control to the parent nfa_regmatch(). 
+	     * surround a zero-width group, used with "\@=" and "\&".
+	     * If we got here, it means that the current "invisible" group finished
+	     * successfully, so return control to the parent nfa_regmatch().
 	     * Submatches are stored in *m, and used in the parent call. */
 	    case NFA_END_INVISIBLE:
 		if (start->c == NFA_MOPEN + 0)
@@ -2974,7 +2974,7 @@ displaying on stderr ... ");
 		break;
 
 	    case NFA_END_NEG_RANGE:
-		/* This follows a series of negated nodes, like: 
+		/* This follows a series of negated nodes, like:
 		 * CHAR(x), NFA_NOT, CHAR(y), NFA_NOT etc. */
 		if (c > 0)
 		  addstate(nextlist, t->state->out, &t->sub, n, listid+1, &match);
@@ -3127,10 +3127,10 @@ displaying on stderr ... ");
 
 	}   /* for (thislist = thislist; thislist->state; thislist++) */
 
-	/* The first found match is the leftmost one, but there may be a 
-	 * longer one. Keep running the NFA, but don't start from the 
+	/* The first found match is the leftmost one, but there may be a
+	 * longer one. Keep running the NFA, but don't start from the
 	 * beginning. Also, do not add the start state in recursive calls of
-	 * nfa_regmatch(), because recursive calls should only start in the 
+	 * nfa_regmatch(), because recursive calls should only start in the
 	 * first position. */
 	if (match == FALSE && start->c == NFA_MOPEN + 0)
 	{
@@ -3376,16 +3376,16 @@ nfa_regcomp(expr, re_flags)
 	goto fail;
     vim_memset(prog, 0, prog_size);
 
-    /* Build postfix form of the regexp. Needed to build the NFA 
+    /* Build postfix form of the regexp. Needed to build the NFA
      * (and count its size) */
     postfix = re2post();
     if (postfix == NULL)
 	goto fail;	    /* Cascaded (syntax?) error */
 
-    /* 
+    /*
      * In order to build the NFA, we parse the input regexp twice:
      * 1. first pass to count size (so we can allocate space)
-     * 2. second to emit code 
+     * 2. second to emit code
      */
 #ifdef ENABLE_LOG
     FILE *f = fopen("log_nfarun.log", "a");
@@ -3397,14 +3397,14 @@ nfa_regcomp(expr, re_flags)
     }
 #endif
 
-    /* PASS 1 
-     * Count number of NFA states in "nstate". Do not build the NFA. 
+    /* PASS 1
+     * Count number of NFA states in "nstate". Do not build the NFA.
      */
     post2nfa(postfix, post_ptr, TRUE);
     state_ptr = prog->state;
 
     /* PASS 2
-     * Build the NFA 
+     * Build the NFA
      */
     prog->start = post2nfa(postfix, post_ptr, FALSE);
     if (prog->start == NULL)

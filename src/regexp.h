@@ -22,7 +22,7 @@
 #define NSUBEXP  10
 
 /*
- * In the NFA engine: how many braces are allowed. 
+ * In the NFA engine: how many braces are allowed.
  * TODO(RE): Use dynamic memory allocation instead of static, like here
  */
 #define NFA_MAX_BRACES 20

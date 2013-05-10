@@ -1066,9 +1066,9 @@ skip_regexp(startp, dirc, magic, newp)
 			p = *newp + (p - startp);
 		}
 		if (*newp != NULL)
-		    /* TODO(RE) This is probably a bug. 
+		    /* TODO(RE) This is probably a bug.
 		     * STRMOVE is defined as "mch_memmove((d), (s), STRLEN(s) + 1)"
-		     * but the previous call was "mch_memmove(p, p+1, STRLEN(p))" 
+		     * but the previous call was "mch_memmove(p, p+1, STRLEN(p))"
 		     */
 		    STRMOVE(p, p + 1);
 		else
@@ -7480,7 +7480,7 @@ static int regexp_engine = 0;
 #define	    BACKTRACKING_ENGINE	1
 #define	    NFA_ENGINE		2
 static char_u regname[][30] = {
-		    "AUTOMATIC Regexp Engine", 
+		    "AUTOMATIC Regexp Engine",
 		    "BACKTACKING Regexp Engine",
 		    "NFA Regexp Engine"
 			    };
@@ -7501,7 +7501,7 @@ vim_regcomp(expr, re_flags)
 	if (STRNCMP(expr, "\\%#=", 4) == 0)
 	{
 	    int newengine = expr[4] - '0';
-	    if (newengine == AUTOMATIC_ENGINE || newengine == BACKTRACKING_ENGINE 
+	    if (newengine == AUTOMATIC_ENGINE || newengine == BACKTRACKING_ENGINE
 		|| newengine == NFA_ENGINE)
 	    {
 		regexp_engine = expr[4] - '0';
@@ -7516,7 +7516,7 @@ vim_regcomp(expr, re_flags)
 		regexp_engine = AUTOMATIC_ENGINE;
 	    }
 	}
-#ifdef DEBUG	
+#ifdef DEBUG
     bt_regengine.expr = expr;
     nfa_regengine.expr = expr;
 #endif
@@ -7551,7 +7551,7 @@ vim_regcomp(expr, re_flags)
 	    */
 	}
 #endif
-	/* If NFA engine failed, then revert to the backtracking engine. 
+	/* If NFA engine failed, then revert to the backtracking engine.
 	 * Except when there was a syntax error, which was properly handled by NFA engine */
 	if (regexp_engine == AUTOMATIC_ENGINE)
 	    if (!syntax_error)
