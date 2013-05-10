@@ -148,7 +148,7 @@ STARTTEST
 :call add(tl, ['ab', '                    ab           ', 'ab'])
 
 :" Search multi-modifiers
-:call add(tl, ['x*', 'xcd', 'x'])   
+:call add(tl, ['x*', 'xcd', 'x'])
 :call add(tl, ['x*', 'xxxxxxxxxxxxxxxxsofijiojgf', 'xxxxxxxxxxxxxxxx'])
 :call add(tl, ['x*', 'abcdoij', ''])                    " empty match is good
 :call add(tl, ['x\+', 'abcdoin'])                       " no match here
@@ -162,7 +162,7 @@ STARTTEST
 :call add(tl, ['x\?', 'abc sfoij', ''])                 " empty match is good
 :call add(tl, ['x\?', 'xxxxxxxxxx c', 'x'])
 
-:call add(tl, ['a\{0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['a\{0,0}', 'abcdfdoij', ''])
 :call add(tl, ['a\{0,1}', 'asiubid axxxaaa', 'a'])      " same thing as 'a?'
 :call add(tl, ['a\{1,0}', 'asiubid axxxaaa', 'a'])      " same thing as 'a\{0,1}'
 :call add(tl, ['a\{3,6}', 'aa siofuh'])
@@ -182,7 +182,7 @@ STARTTEST
 :call add(tl, ['a\{}', 'bbbcddiuhfcd', ''])                 " same thing as 'a*'
 :call add(tl, ['a\{}', 'aaaaioudfh coisf jda', 'aaaa'])
 
-:call add(tl, ['a\{-0,0}', 'abcdfdoij', '']) 
+:call add(tl, ['a\{-0,0}', 'abcdfdoij', ''])
 :call add(tl, ['a\{-0,1}', 'asiubid axxxaaa', ''])      " anti-greedy version of 'a?'
 :call add(tl, ['a\{-3,6}', 'aa siofuh'])
 :call add(tl, ['a\{-3,6}', 'aaaaa asfoij afaa', 'aaa'])
@@ -221,7 +221,7 @@ STARTTEST
 :call add(tl, ['\v(a{1,2}){-2,3}','aaaaaaa','aaaa','aa'])
 :call add(tl, ['\v(a{-1,3})+','aa','aa','a'])
 
-:" Test Character classes 
+:" Test Character classes
 :call add(tl, ['\d\+e\d\d','test 10e23 fd','10e23'])
 
 :" Test collections and character range []
@@ -243,7 +243,7 @@ STARTTEST
 :call add(tl, ['[-a]', '-', '-'])
 :call add(tl, ['[a-]', '-', '-'])
 :call add(tl, ['[-./[:alnum:]_~]\+', 'log13.file', 'log13.file'])		" filename regexp
-:call add(tl, ['[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars 
+:call add(tl, ['[\]\^\-\\]\+', '\^\\\-\---^', '\^\\\-\---^'])			" special chars
 :call add(tl, ['[[.a.]]\+', 'aa', 'aa'])								" collation elem
 :call add(tl, ['abc[0-9]*ddd', 'siuhabc ii'])							" middle of regexp
 :call add(tl, ['abc[0-9]*ddd', 'adf abc44482ddd oijs', 'abc44482ddd'])
@@ -261,7 +261,7 @@ STARTTEST
 :call add(tl, ['[A-Z]', 'a'])
 :call add(tl, ['\C[^A-Z]\+', 'ABCOIJDEOIFNSD jsfoij sa', ' jsfoij sa'])
 
-:"""" Tests for \z features 
+:"""" Tests for \z features
 :call add(tl, ['xx \ze test', 'xx '])					" must match after \ze
 :call add(tl, ['abc\zeend', 'oij abcend', 'abc'])
 :call add(tl, ['abc\zsdd', 'ddabcddxyzt', 'dd'])
@@ -291,7 +291,7 @@ STARTTEST
 :call add(tl, ['\v(test|)empty', 'tesempty', 'empty', ''])
 :call add(tl, ['\v(a|aa)(a|aa)', 'aaa', 'aa', 'a', 'a'])
 
-:"""" Multi-byte character tests. These will fail unless vim is compiled 
+:"""" Multi-byte character tests. These will fail unless vim is compiled
 :"""" with Multibyte (FEAT_MBYTE) or BIG/HUGE features.
 :call add(tl, ['[[:alpha:][=a=]]\+', '879 aiaãâaiuvna ', 'aiaãâaiuvna'])
 :call add(tl, ['[[=a=]]\+', 'ddaãâbcd', 'aãâ'])								" equivalence classes
@@ -329,7 +329,7 @@ STARTTEST
 :    unlet i
 :  endif
 :endfor
-:unlet t tl e l 
+:unlet t tl e l
 
 
 
